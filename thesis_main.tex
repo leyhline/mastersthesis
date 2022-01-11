@@ -8,14 +8,13 @@
   % you can also set it to full for even more space. But there is a bad tex style decision: parskip also changes the spacing between listitems such as
   % enumerate and itemize. For this purpose we include the enumitem package and set itemsep=.5em, of course you can change this
   BCOR=10mm,
-  english,
-  ngerman]{book}
-\usepackage[english, ngerman]{babel} % If you write mainly in english change order to ngerman, english
+  english]{book}
+\usepackage[english]{babel} % If you write mainly in english change order to ngerman, english
 % Include of titling must happen before \title etc.
 % that's why it's not in setup.tex
 \usepackage{titling}
-\title{Your title goes here}
-\author{Your Name}
+\title{Implementing Cast Calculus for Label-dependent Lambda Calculus}
+\author{Thomas Leyh}
 
 % include all packages and define commands in setup.tex
 \input{setup}
@@ -28,7 +27,7 @@
 
     % enable/disable, depending on your chosen language
     \input{chapters/0_0-titlepage_en}
-    \input{chapters/0_0-titlepage_de}
+    %\input{chapters/0_0-titlepage_de}
 
     \pagestyle{plain} % remove chapter name from top, page number at the bottom
     % use \pagestyle{headings} for having the chapter on top of the pages
