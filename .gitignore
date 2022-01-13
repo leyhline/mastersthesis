@@ -13,6 +13,10 @@
 
 *.pdf
 
+# don't commit IDE specific files
+.kile/
+*.kilepr
+
 # OS generated files #
 ######################
 .DS_Store
