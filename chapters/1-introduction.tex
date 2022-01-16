@@ -1,5 +1,44 @@
+\newcommand{\case}{\text{ \textbf{case} }}
+\newcommand{\Bool}{\text{ \textbf{Bool} }}
+\newcommand{\Int}{\text{ \textbf{Int} }}
+\newcommand{\notf}{\text{ \textbf{not} }}
+
 \chapter{Introduction}\label{chap:introduction}
 
 In programming, dependent types are the next step in the unification of language constructs. Not only values and functions but also types are first class constructs. This goes along with a number of practical advantages: Types may now depend on values, allowing a more precise typing, consequently better correctness guarantees and more expressive power when describing programs. Nevertheless, such power comes at a cost: As the difference between proof and program grows hazy, typechecking and program interpretation will face similar problems. The former becomes more costly and might be subject to the halting problem.
 
-Over the years, different approaches and variations of dependent type systems surfaced. This work is bases on a subset of ``Label Dependent Session Types'' by \cite{thiemann2019}.
+Over the years, different approaches to dependent types surfaced. This work is bases on a subset of ``Label Dependent Session Types'' by \cite{thiemann2019}. Ignoring session types, we focus on the \emph{Label Dependent Lambda Calculus} (LDLC), extending it during this work. In general, types in LDLC refer to finite sets of label values. For example, it is easy to define type \textbf{Bool}:
+
+\begin{equation}
+\Bool    := \{T, F\}
+\end{equation}
+
+Elimination is done using a \textbf{case} construct, matching labels with expressions. This quickly results in unwieldy type annotations.
+
+\begin{equation}\label{eqn:ldlc}
+\begin{split}
+&\lambda (x: \Bool) \\
+&\quad . \lambda (y: \case x \{T: \Int, F: \Bool\} ) \\
+&\qquad . \case x \{T: 17+y,F: \notf y\} \\
+: & \Pi(x : \Bool) \\
+&\quad . \Pi (y: \case x \{T: \Int, F: \Bool\} ) \\
+&\qquad . \case x \{T: \Int, F: \Bool \}
+\end{split}
+\end{equation}
+
+Label-dependency has many advantages. The compiler has more options to check type safety, resulting in a more reliable program. Furthermore, types can serve as a machine-readable and machine-verifiable documentation since they give hints about the workings of the code.
+As a disadvantage, the code above is quite verbose. Adding all these type annotations can be cumbersome for a programmer, especially when still exploring a given task and trying out different approaches.
+
+\emph{Gradual Typing} mitigates this problem since it allows to mix static and dynamic typing. In their paper, \cite{fu2021} propose an extension, the \emph{Gradual Label Dependent Lambda Calculus} (GLDLC), introducing the dynamic type $\ast$. Annotating terms with $\ast$ results in type checking at runtime, still preserving the guarantees of statically typed code at its boundaries. For example, equation~\ref{eqn:ldlc} might be rewritten as:
+
+\begin{equation}
+\begin{split}
+&\lambda (x: \Bool)
+. \lambda (y: *)
+. \case x \{T: 17+y,F: \notf y\} \\
+: & \Pi(x : \Bool)
+. \Pi (y: *)
+. \case x \{T: \Int, F: \Bool \}
+\end{split}
+\end{equation}
+
