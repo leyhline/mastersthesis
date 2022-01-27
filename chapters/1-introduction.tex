@@ -29,16 +29,30 @@ Elimination is done using a \textbf{case} construct, matching labels with expres
 Label-dependency has many advantages. The compiler has more options to check type safety, resulting in a more reliable program. Furthermore, types can serve as a machine-readable and machine-verifiable documentation since they give hints about the workings of the code.
 As a disadvantage, the code above is quite verbose. Adding all these type annotations can be cumbersome for a programmer, especially when still exploring a given task and trying out different approaches.
 
-\emph{Gradual Typing} mitigates this problem since it allows to mix static and dynamic typing. In their paper, \cite{fu2021} propose an extension, the \emph{Gradual Label Dependent Lambda Calculus} (GLDLC), introducing the dynamic type $\ast$. Annotating terms with $\ast$ results in type checking at runtime, still preserving the guarantees of statically typed code at its boundaries. For example, equation~\ref{eqn:ldlc} might be rewritten as:
+\emph{Gradual Typing} mitigates this problem since it allows to mix static and dynamic typing. In their paper, \cite{fu2021} propose an extension, the \emph{Gradual Label Dependent Lambda Calculus} (GLDLC), introducing the dynamic type $\ast$. Annotating terms with $\ast$ results in type checking at runtime, still preserving the guarantees of statically typed code at its boundaries. One possibility for rewriting equation~\ref{eqn:ldlc} is:
 
-\begin{equation}
+\begin{equation}\label{eqn:gldlc}
 \begin{split}
 &\lambda (x: \Bool)
-. \lambda (y: *)
+. \lambda (y: \ast)
 . \case x \{T: 17+y,F: \notf y\} \\
 : & \Pi(x : \Bool)
-. \Pi (y: *)
+. \Pi (y: \ast)
 . \case x \{T: \Int, F: \Bool \}
 \end{split}
 \end{equation}
 
+The original paper list more advantages and applications of GLDLC, whereas this work focuses on implementation aspects. Therefore, the methods used for evaluating type $\ast$ are of interest, which leads us to an intermediate representation, describing the cast from arbitrary type $A$ to $\ast$ and from $\ast$ to an arbitrary type $B$: the \emph{Cast Calculus Label Dependent Lambda Calculus} (CCLDLC). The \emph{Cast Calculus} adds an explicit type cast expression ``$x : A \Rightarrow B$'', casting the value of $x$ of type $A$ to type $B$. Of course, type $\ast$ can occur on both sides. Rewriting equation~\ref{eqn:gldlc} results in a more verbose and more explicit formulation:
+
+\begin{equation}\label{eqn:ccldlc}
+\begin{split}
+&\lambda (x: \Bool) . \lambda (y: \ast ) \\
+&\quad . \case x \{T: 17+(y:\ast \Rightarrow \Int),F: \notf (y:\ast \Rightarrow \Bool)\} \\
+: & \Pi(x : \Bool) . \Pi (y: \ast ) \\
+&\quad . \case x \{T: \Int, F: \Bool \}
+\end{split}
+\end{equation}
+
+We contribute an implementation of CCLDLC by extending LDGV, an existing interpreter and compiler for Label Dependent Session Types. The complete frontend is written in Haskell and there is a backend for the C programming language. The full source code is available at \url{https://github.com/leyhline/ldgv/}. \todo{Merge with prolang/ldgv and replace link.}
+
+First, we describe the LDGV compiler and the rules of LDLC, since they provide the foundation for our extensions. Next, there in an outline of the program's structure with respect to changes we made. Then, we formally describe the rules for CCLDLC and finally the implementation in documented in a detailed manner.

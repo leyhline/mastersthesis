@@ -1,0 +1,41 @@
+\newcommand{\letb}{\text{ \textbf{let} }}
+\newcommand{\inb}{\text{ \textbf{in} }}
+\newcommand{\rec}{\text{ \textbf{rec} }}
+\newcommand{\natrec}{\text{ \textbf{natrec} }}
+\newcommand{\fstb}{\text{ \textbf{fst} }}
+\newcommand{\sndb}{\text{ \textbf{snd} }}
+
+\chapter{Foundations}\label{chap:foundations}
+
+Before diving into the \emph{Cast Calculus} we have to introduce the base language, the \emph{Label Dependent Lambda Calculus} and its implementation LDGV.
+
+\section{Label Dependent Lambda Calculus}
+
+The LDLC is the foundation of this work. Its main aspect is additional simplicity when using session types. Introducing labels resulted in decouped operations in sending and receiving functions, hence being more lightweight regarding its semantics. See \cite{thiemann2019}. However, session types are not of special relevance when introducing casts. For brevity, we will omit the handling of session types, focusing on labels instead.
+
+\begin{figure}
+\begin{align*}
+ M,N,P ::=
+    & \enspace x \enspace|\enspace
+      () \enspace|\enspace
+      \ell \enspace|\enspace
+      (M) \\
+    & |\enspace \case X \{\overline{\ell : N_l}\} & \text{label set elimination} \\
+    & |\enspace M \circ N & \circ \in \{+,-,\times,\div\} \\
+    & |\enspace \natrec M \{ N, x . A . (y : B) . P \} \\
+    & |\enspace \rec x ( y : A ) : B = M \\
+    & |\enspace \lambda (x : A).M & \text{Abstraction} \\
+    & |\enspace M N & \text{Application}\\
+    & |\enspace \letb x = M \inb N \\
+    & |\enspace \letb \langle x, y \rangle = M \inb N \\
+    & |\enspace \langle x = M, N \rangle \\
+    & |\enspace \fstb M \enspace|\enspace \sndb M & \text{pair elimination} \\
+\end{align*}
+\caption{Expressions in LDLC}
+\label{fig:ldlc-expressions}
+\end{figure}
+
+
+\section{LDGV Interpreter and Compiler}
+
+LDGV stands for ``Label Dependency'' and ``Gay \& Vasconcelos'', the authors of multiple papers about Session Types, e.g. \cite{gayvasconcelos2010}.
