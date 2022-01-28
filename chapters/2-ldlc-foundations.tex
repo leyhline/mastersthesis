@@ -5,6 +5,14 @@
 \newcommand{\fstb}{\text{ \textbf{fst} }}
 \newcommand{\sndb}{\text{ \textbf{snd} }}
 
+\newcommand{\Unit}{\text{ \textbf{Unit} }}
+\newcommand{\Nat}{\text{ \textbf{Nat} }}
+\newcommand{\Double}{\text{ \textbf{Double} }}
+\newcommand{\Bot}{\text{ \textbf{Bot} }}
+
+\newcommand{\valb}{\text{ \textbf{val} }}
+\newcommand{\typeb}{\text{ \textbf{type} }}
+
 \chapter{Foundations}\label{chap:foundations}
 
 Before diving into the \emph{Cast Calculus} we have to introduce the base language, the \emph{Label Dependent Lambda Calculus} and its implementation LDGV.
@@ -18,23 +26,53 @@ The LDLC is the foundation of this work. Its main aspect is additional simplicit
  M,N,P ::=
     & \enspace x \enspace|\enspace
       () \enspace|\enspace
-      \ell \enspace|\enspace
-      (M) \\
-    & |\enspace \case X \{\overline{\ell : N_l}\} & \text{label set elimination} \\
+      \ell \\
     & |\enspace M \circ N & \circ \in \{+,-,\times,\div\} \\
-    & |\enspace \natrec M \{ N, x . A . (y : B) . P \} \\
-    & |\enspace \rec x ( y : A ) : B = M \\
-    & |\enspace \lambda (x : A).M & \text{Abstraction} \\
-    & |\enspace M N & \text{Application}\\
+    & |\enspace \case X \{\overline{\ell : N_\ell}\} & \text{label set elimination} \\
+    & |\enspace \natrec M \{ N, x . t . (y : B) . P \} & \mathbb{N}\text{ recursor} \\
+    & |\enspace \lambda (x : A).M & \text{abstraction} \\
+    & |\enspace M N & \text{application}\\
     & |\enspace \letb x = M \inb N \\
     & |\enspace \letb \langle x, y \rangle = M \inb N \\
-    & |\enspace \langle x = M, N \rangle \\
-    & |\enspace \fstb M \enspace|\enspace \sndb M & \text{pair elimination} \\
+    & |\enspace \langle x = M, N \rangle & \text{pair construction}\\
+    & |\enspace \fstb M \enspace|\enspace \sndb M & \text{pair elimination}
 \end{align*}
 \caption{Expressions in LDLC}
 \label{fig:ldlc-expressions}
 \end{figure}
 
+\begin{figure}
+\begin{align*}
+ A, B ::=
+    & \enspace t \enspace|\enspace
+      \Unit \enspace|\enspace
+      \Bot \\
+    & |\enspace \Int \enspace|\enspace
+      \Nat \enspace|\enspace
+      \Double \\
+    & |\enspace \{ \ell_1, \dots, \ell_n \} & \text{finite label set} \\
+    & |\enspace [x:A,B] \enspace|\enspace [A,B] & \text{pair type} \\
+    & |\enspace \{\{ M = N : A \}\} & \text{type equality} \\
+    & |\enspace (x:A) \rightarrow B & \text{function type} \\
+    & |\enspace \case M \{\overline{\ell : A_\ell}\} \\
+    & |\enspace \natrec M \{ A, t.B \}
+\end{align*}
+\caption{Types in LDLC}
+\label{fig:ldlc-types}
+\end{figure}
+
+\begin{figure}
+\begin{align*}
+    \valb x & = M & \text{variable declaration} \\
+    \valb x & : A & \text{variable signature declaration} \\
+    \typeb t & : A & \text{type declaration} \\
+    A & <: B & \text{subtype check} \\
+    A & =: B & \text{type equivalence check} \\
+    & = x\ M\ N
+\end{align*}
+\caption{Statements in LDLC}
+\label{fig:ldlc-statements}
+\end{figure}
 
 \section{LDGV Interpreter and Compiler}
 
