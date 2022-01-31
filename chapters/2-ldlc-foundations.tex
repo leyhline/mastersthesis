@@ -21,12 +21,19 @@ Before diving into the \emph{Cast Calculus} we have to introduce the base langua
 
 The LDLC is the foundation of this work. Its main aspect is additional simplicity when using session types. Introducing labels resulted in decouped operations in sending and receiving functions, hence being more lightweight regarding its semantics. See \cite{thiemann2019}. However, session types are not of special relevance when introducing casts. For brevity, we will omit the handling of session types, focusing on labels instead.
 
+A list of language constructs is found in figures~\ref{fig:ldlc-expressions}~to~\ref{fig:ldlc-values}. There is support common functionality like variables \todo{is this the correct word in this context? Is identifier better?} for expressions and types\footnote{
+Variable names for expressions have to start with a lowercase letter, e.g. ``$\valb x = ()$''; for types its an uppercase letter: ``$\typeb X : Unit$''.}\
+, functions and pairs as well as numerical operations and values. In general---as implied by its name---its based on \emph{Simply Typed Lambda Calculus} (details can be found in most introductory literature, e.g. \cite{pierce2002}). As in many functional languages, there is also the unit type $\Unit$ encompassing its only value ``$()$''.
+
+Another two language concepts are more interesting: First and foremost, the support for labels $\ell$ and the recursion over natural numbers using $\natrec$.
+
 \begin{figure}
 \begin{align*}
  M,N,P ::=
     & \enspace x \enspace|\enspace
       () \enspace|\enspace
-      \ell \\
+      \ell \enspace|\enspace
+      x \in \mathbb{R} \\
     & |\enspace M \circ N & \circ \in \{+,-,\times,\div\} \\
     & |\enspace \case X \{\overline{\ell : N_\ell}\} & \text{label set elimination} \\
     & |\enspace \natrec M \{ N, x . t . (y : B) . P \} & \mathbb{N}\text{ recursor} \\
@@ -68,11 +75,32 @@ The LDLC is the foundation of this work. Its main aspect is additional simplicit
     \typeb t & : A & \text{type declaration} \\
     A & <: B & \text{subtype check} \\
     A & =: B & \text{type equivalence check} \\
-    & = x\ M\ N
+    & = x\ M\ N & \text{\extend{what does this do?}}
 \end{align*}
 \caption{Statements in LDLC}
 \label{fig:ldlc-statements}
 \end{figure}
+
+\begin{figure}
+\begin{align*}
+    V, W ::=
+    & \enspace () \enspace|\enspace
+      \ell \enspace|\enspace
+      x \in \mathbb{R} \\
+    & |\enspace \lambda (x:A).M & \text{function value} \\
+    & |\enspace \langle V, W \rangle & \text{pair value}
+\end{align*}
+\caption{Values in LDLC}
+\label{fig:ldlc-values}
+\end{figure}
+
+\subsection{Labels and Label Sets}
+
+The main feature of LDLC is its use of labels. A label $\ell$ is any combination of alphanumeric characters, prefixed by an apostroph, e.g. ``\texttt{'foo}''. It evaluates to itself, thus it forms its own value. But what about its type?
+
+Any finite non-empty set of labels $L$ is a type. For example, ``\texttt{\{'foo, 'bar, 'baz\}}'' forms a type. One can easily declare a boolean type with ``\texttt{type Bool : \{'True, 'False\}}''. The minimal type is the singleton type of its corresponding label: ``\texttt{'foo : \{'foo\}}''.
+
+
 
 \section{LDGV Interpreter and Compiler}
 
