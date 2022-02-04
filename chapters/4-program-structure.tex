@@ -1,0 +1,22 @@
+\chapter{Program Structure}\label{chap:Program Structure}
+
+LDGV is built out of a number of modules. There is a clear hierarchy as seen in the dependency graph in figure~\ref{fig:dependency-graph}. Each functionality builds an independent group of modules:
+
+\begin{itemize}
+ \item Module \texttt{Parsing}, including tokenization
+ \item Module \texttt{Typechecker}, including modules for typechecking expressions and another one for subtyping in particular.
+ \item Module \texttt{Interpreter} with data types for environment and values.
+ \item Module \texttt{C.Generate}, the code generator for the C backend
+\end{itemize}
+
+Most modules depend on the \texttt{Syntax} module. It provides data types for language constructs like Expressions, Types and Literals. When invoking the program's functionality, the relevant module functions are invoked in order, e.g. when running the interpreter it (1) parses the source code, (2) runs the type checker on the AST and on success, it finally (3) interprets the AST's \texttt{main} function if available and returns its value.
+
+\begin{figure}
+ \centering
+ \includegraphics[width=20cm,angle=90]{figures/depgraph_new_concept.dot.pdf}
+ % depgraph_new_concept.dot.pdf: 1197x332 px, 72dpi, 42.23x11.71 cm, bb=0 0 1197 332
+ \caption{Module dependencies of LDGV, slightly simplified without utility modules.}
+ \label{fig:dependency-graph}
+\end{figure}
+
+Since the module groups are seperated, only the Interpreter knows about values, though there is no dependency on the type checker. The interpreter for LDLC does not need to know about types, its only concern is the evaluation of expressions, i.e. after type checking, \emph{type erasure} occurs. \todo{Make sure this is the correct term, maybe cite something.}

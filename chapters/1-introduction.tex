@@ -1,16 +1,24 @@
+\lstdefinelanguage{ldgv}{
+    morekeywords={let,in,rec,natrec,fst,snd,Unit,Nat,Double,Bot,val,type,fn,case},
+    sensitive=true,
+    morecomment=[l]{--}
+}
+
 \newcommand{\case}{\text{ \textbf{case} }}
 \newcommand{\Bool}{\text{ \textbf{Bool} }}
 \newcommand{\Int}{\text{ \textbf{Int} }}
-\newcommand{\notf}{\text{ \textbf{not} }}
+\newcommand{\notf}{\text{ not }}
 
 \chapter{Introduction}\label{chap:introduction}
 
 In programming, dependent types are the next step in the unification of language constructs. Not only values and functions but also types are first class constructs. This goes along with a number of practical advantages: Types may now depend on values, allowing a more precise typing, consequently better correctness guarantees and more expressive power when describing programs. Nevertheless, such power comes at a cost: As the difference between proof and program grows hazy, typechecking and program interpretation will face similar problems. The former becomes more costly and might be subject to the halting problem.
 
+\section{Label Dependent Types}
+
 Over the years, different approaches to dependent types surfaced. This work is bases on a subset of ``Label Dependent Session Types'' by \cite{thiemann2019}. Ignoring session types, we focus on the \emph{Label Dependent Lambda Calculus} (LDLC), extending it during this work. In general, types in LDLC refer to finite sets of label values. For example, it is easy to define type \textbf{Bool}:
 
-\begin{equation}
-\Bool    := \{T, F\}
+\begin{equation}\label{eqn:bool}
+\Bool    := \{\ell_T, \ell_F\}
 \end{equation}
 
 Elimination is done using a \textbf{case} construct, matching labels with expressions. This quickly results in unwieldy type annotations.
@@ -18,16 +26,18 @@ Elimination is done using a \textbf{case} construct, matching labels with expres
 \begin{equation}\label{eqn:ldlc}
 \begin{split}
 &\lambda (x: \Bool) \\
-&\quad . \lambda (y: \case x \{T: \Int, F: \Bool\} ) \\
-&\qquad . \case x \{T: 17+y,F: \notf y\} \\
+&\quad . \lambda (y: \case x \{\ell_T: \Int, \ell_F: \Bool\} ) \\
+&\qquad . \case x \{\ell_T: 17+y,\ell_F: \notf y\} \\
 : & \Pi(x : \Bool) \\
-&\quad . \Pi (y: \case x \{T: \Int, F: \Bool\} ) \\
-&\qquad . \case x \{T: \Int, F: \Bool \}
+&\quad . \Pi (y: \case x \{\ell_T: \Int, \ell_F: \Bool\} ) \\
+&\qquad . \case x \{\ell_T: \Int, \ell_F: \Bool \}
 \end{split}
 \end{equation}
 
 Label-dependency has many advantages. The compiler has more options to check type safety, resulting in a more reliable program. Furthermore, types can serve as a machine-readable and machine-verifiable documentation since they give hints about the workings of the code.
 As a disadvantage, the code above is quite verbose. Adding all these type annotations can be cumbersome for a programmer, especially when still exploring a given task and trying out different approaches.
+
+\section{Gradual Typing}
 
 \emph{Gradual Typing} mitigates this problem since it allows to mix static and dynamic typing. In their paper, \cite{fu2021} propose an extension, the \emph{Gradual Label Dependent Lambda Calculus} (GLDLC), introducing the dynamic type $\ast$. Annotating terms with $\ast$ results in type checking at runtime, still preserving the guarantees of statically typed code at its boundaries. One possibility for rewriting equation~\ref{eqn:ldlc} is:
 
@@ -35,21 +45,21 @@ As a disadvantage, the code above is quite verbose. Adding all these type annota
 \begin{split}
 &\lambda (x: \Bool)
 . \lambda (y: \ast)
-. \case x \{T: 17+y,F: \notf y\} \\
+. \case x \{\ell_T: 17+y,\ell_F: \notf y\} \\
 : & \Pi(x : \Bool)
 . \Pi (y: \ast)
-. \case x \{T: \Int, F: \Bool \}
+. \case x \{\ell_T: \Int, \ell_F: \Bool \}
 \end{split}
 \end{equation}
 
-The original paper list more advantages and applications of GLDLC, whereas this work focuses on implementation aspects. Therefore, the methods used for evaluating type $\ast$ are of interest, which leads us to an intermediate representation, describing the cast from arbitrary type $A$ to $\ast$ and from $\ast$ to an arbitrary type $B$: the \emph{Cast Calculus Label Dependent Lambda Calculus} (CCLDLC). The \emph{Cast Calculus} adds an explicit type cast expression ``$x : A \Rightarrow B$'', casting the value of $x$ of type $A$ to type $B$. Of course, type $\ast$ can occur on both sides. Rewriting equation~\ref{eqn:gldlc} results in a more verbose and more explicit formulation:
+The original paper list more advantages and applications of GLDLC, whereas this work focuses on implementation aspects. Therefore, the methods used for evaluating type $\star$ are of interest, which leads us to an intermediate representation, describing the cast from arbitrary type $A$ to $\star$ and from $\star$ to an arbitrary type $B$: the \emph{Cast Calculus Label Dependent Lambda Calculus} (CCLDLC). The \emph{Cast Calculus} adds an explicit type cast expression ``$x : A \Rightarrow B$'', casting the value of $x$ of type $A$ to type $B$. Of course, type $\star$ can occur on both sides. Rewriting equation~\ref{eqn:gldlc} results in a more verbose and more explicit formulation:
 
 \begin{equation}\label{eqn:ccldlc}
 \begin{split}
 &\lambda (x: \Bool) . \lambda (y: \ast ) \\
-&\quad . \case x \{T: 17+(y:\ast \Rightarrow \Int),F: \notf (y:\ast \Rightarrow \Bool)\} \\
+&\quad . \case x \{\ell_T: 17+(y:\ast \Rightarrow \Int),\ell_F: \notf (y:\ast \Rightarrow \Bool)\} \\
 : & \Pi(x : \Bool) . \Pi (y: \ast ) \\
-&\quad . \case x \{T: \Int, F: \Bool \}
+&\quad . \case x \{\ell_T: \Int, \ell_F: \Bool \}
 \end{split}
 \end{equation}
 
@@ -59,7 +69,7 @@ First, we describe the LDGV compiler and the rules of LDLC, since they provide t
 
 \section{Notation}
 
-Since this work is about building an implementation, there needs to be a distinction between concepts and code. Often, both will be quite similar. Concepts like formulas and rules are conveyed using mathematical notation and environments, sometimes disregarding language's syntax.
+Since this work is about building an implementation, there needs to be a distinction between concepts and code. Often, both will be quite similar. Concepts like formulas and rules are conveyed using mathematical notation and environments which is not necessarily identical to the syntax of LDGV.
 
 \begin{align*}
  x &:= \text{foo} & \text{variable definition} \\
@@ -68,5 +78,7 @@ Since this work is about building an implementation, there needs to be a distinc
 
 Then again, actual code should precisely reflect the capabilities of LDGV. One can feed it verbatim to the interpreter. It is written in a monospaced font.
 
-\centering
-\texttt{val x = 'foo \\ type A : \{ 'foo \}}
+\begin{lstlisting}[language=ldgv]
+val x = 'foo
+type A : { 'foo }
+\end{lstlisting}

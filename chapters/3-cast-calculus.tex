@@ -1,0 +1,35 @@
+\newcommand{\blame}{\text{ \textbf{blame} }}
+\newcommand{\Single}{\text{ \textbf{S} }}
+
+\chapter{Cast Calculus}\label{chap:cast-calculus}
+
+The \emph{Cast Calculus Label Dependent Lambda Calculus} is an extension to regular LDLC as introduced in section~\ref{sec:ldlc}. It adds an explicit cast between two types, a dynamic type $\star$ as well as related language constructs. CCLDLC is but an intermediate representation between LDLC and a gradual typing extension. Internally, casts at runtime involving the dynamic type must happen explicitly. With gradual typing these type casts are hidden, hence a translation to the cast calculus is necessary.
+
+\begin{figure}
+\begin{align*}
+ M ::= & \enspace \dots \enspace|\enspace
+     M : A \Rightarrow B \enspace|\enspace \blame \\
+ A ::= & \enspace \dots \enspace|\enspace
+     \star \enspace|\enspace \bot \enspace|\enspace \top \\
+ V ::= & \enspace \dots \enspace
+        |\enspace (V : G \Rightarrow \star) \\
+      & |\enspace (\rho, \lambda(x:A)M) \\
+      & |\enspace (V : (\rho, \Pi(x:A) A') \Rightarrow (\rho, \Pi(x:B) B') )
+\end{align*}
+\caption{Extensions to LDLC for CCLDLC for expression $M$, types $A, A', B, B'$ and value $V$. Also environment $\rho$, variable $x$ and ground type $G$.}
+\label{fig:ccldlc-extensions}
+\end{figure}
+
+\begin{figure}
+\begin{align*}
+ G ::= & \Unit \enspace|\enspace
+    L \enspace|\enspace
+    \Single\{V: \Unit\} \enspace|\enspace
+    \Single\{V: L\} \\
+    & |\enspace
+    \Pi(x:\star)\star \enspace|\enspace
+    \Sigma(x:\star)\star
+\end{align*}
+\caption{Ground types for use in CCLDLC values.}
+\label{fig:ccldlc-ground-types}
+\end{figure}

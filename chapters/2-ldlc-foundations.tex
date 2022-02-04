@@ -15,17 +15,17 @@
 
 \chapter{Foundations}\label{chap:foundations}
 
-Before diving into the \emph{Cast Calculus} we have to introduce the base language, the \emph{Label Dependent Lambda Calculus} and its implementation LDGV.
+Before diving into the \emph{Cast Calculus} we introduce the foundation, the \emph{Label Dependent Lambda Calculus} and its implementation LDGV.
 
-\section{Label Dependent Lambda Calculus}
+\section{Label Dependent Lambda Calculus}\label{sec:ldlc}
 
 The LDLC is the foundation of this work. Its main aspect is additional simplicity when using session types. Introducing labels resulted in decouped operations in sending and receiving functions, hence being more lightweight regarding its semantics. See \cite{thiemann2019}. However, session types are not of special relevance when introducing casts. For brevity, we will omit the handling of session types, focusing on labels instead.
 
 A list of language constructs is found in figures~\ref{fig:ldlc-expressions}~to~\ref{fig:ldlc-values}. There is support common functionality like variables \todo{is this the correct word in this context? Is identifier better?} for expressions and types\footnote{
-Variable names for expressions have to start with a lowercase letter, e.g. ``$\valb x = ()$''; for types its an uppercase letter: ``$\typeb X : Unit$''.}\
+Variable names for expressions have to start with a lowercase letter, e.g. \texttt{\valb x = ()}; for types its an uppercase letter: \texttt{\typeb X : Unit}.}\
 , functions and pairs as well as numerical operations and values. In general---as implied by its name---its based on \emph{Simply Typed Lambda Calculus} (details can be found in most introductory literature, e.g. \cite{pierce2002}). As in many functional languages, there is also the unit type $\Unit$ encompassing its only value ``$()$''.
 
-Another two language concepts are more interesting: First and foremost, the support for labels $\ell$ and the recursion over natural numbers using $\natrec$.
+Another two language concepts are more interesting: First and foremost, the support for labels $\ell$ and the recursion over natural numbers using \natrec.
 
 \begin{figure}
 \begin{align*}
@@ -53,7 +53,7 @@ Another two language concepts are more interesting: First and foremost, the supp
  A, B ::=
     & \enspace t \enspace|\enspace
       \Unit \enspace|\enspace
-      \Bot \\
+      \bot \\
     & |\enspace \Int \enspace|\enspace
       \Nat \enspace|\enspace
       \Double \\
@@ -66,19 +66,6 @@ Another two language concepts are more interesting: First and foremost, the supp
 \end{align*}
 \caption{Types in LDLC}
 \label{fig:ldlc-types}
-\end{figure}
-
-\begin{figure}
-\begin{align*}
-    \valb x & = M & \text{variable declaration} \\
-    \valb x & : A & \text{variable signature declaration} \\
-    \typeb t & : A & \text{type declaration} \\
-    A & <: B & \text{subtype check} \\
-    A & =: B & \text{type equivalence check} \\
-    & = x\ M\ N & \text{\extend{what does this do?}}
-\end{align*}
-\caption{Statements in LDLC}
-\label{fig:ldlc-statements}
 \end{figure}
 
 \begin{figure}
@@ -96,12 +83,46 @@ Another two language concepts are more interesting: First and foremost, the supp
 
 \subsection{Labels and Label Sets}
 
-The main feature of LDLC is its use of labels. A label $\ell$ is any combination of alphanumeric characters, prefixed by an apostroph, e.g. ``\texttt{'foo}''. It evaluates to itself, thus it forms its own value. But what about its type?
+The main feature of LDLC is its use of labels. It evaluates to itself, thus it forms its own value. But what about its type? Any finite non-empty set of labels $L$ is a type. For instance, this is sufficient to declare a boolean type, see equation~\ref{eqn:bool}.
 
-Any finite non-empty set of labels $L$ is a type. For example, ``\texttt{\{'foo, 'bar, 'baz\}}'' forms a type. One can easily declare a boolean type with ``\texttt{type Bool : \{'True, 'False\}}''. The minimal type is the singleton type of its corresponding label: ``\texttt{'foo : \{'foo\}}''.
+The minimal type is the singleton type of its corresponding label. For label $\ell$ this is $\{\ell\}$. Apart from that there is the bottom type $\bot$ which corresponds to a hypothetical empty label set.
 
+Predominantly, labels appear in context of \case terms. These may occur as expressions or as types and act as eliminator for labels. They provide a mapping from each label of the corresponding label set to an expression or a type. Hence the name of the calculus, \emph{Label Dependent} Lambda Calculus. The type of an expression may depend on a label value.
 
+If one label type $L_1$ is a subset of another label type $L_2$, then $L_1$ is a subtype of $L_2$, i.e. $L_1 <: L_2$. Thus, there is no $L$ that is a subtype of $\bot$. Subtyping in LDLC is closed under transitivity.
+
+\subsection{Recursor over Natural Numbers}
+
+\todo{Abklären woher die beiden Typ-Argumente bei \natrec kommen.}
 
 \section{LDGV Interpreter and Compiler}
 
-LDGV stands for ``Label Dependency'' and ``Gay \& Vasconcelos'', the authors of multiple papers about Session Types, e.g. \cite{gayvasconcelos2010}.
+LDGV stands for ``Label Dependency'' and ``Gay \& Vasconcelos'', the authors of multiple papers about Session Types, e.g. \cite{gayvasconcelos2010}. In this work's context, it is the name of the interpreter and compiler for LDLC and its extension CCLDLC, written in the Haskell programming language.
+
+Its syntax largely equals the calculus from section~\ref{sec:ldlc}. There are also statements for declarations and assertions, as seen in figure~\ref{fig:ldgv-statements}.
+A label is written as combination of alphanumeric characters, prefixed by an apostroph. Translating equation~\ref{eqn:ldlc} to a valid LDGV program results the sample program in figure~\ref{fig:ldgv-program}.
+
+\begin{figure}
+\begin{lstlisting}[language=ldgv]
+val x = M   -- variable declaration
+val x : A   -- variable signature declaration
+type t : A  -- type declaration
+A <: B      -- subtype assertion
+A =: B      -- type equivalence assertion
+= x M N     -- WHAT DOES THIS DO?
+\end{lstlisting}
+\caption{Statements in LDGV}
+\label{fig:ldgv-statements}
+\end{figure}
+
+\begin{figure}
+\begin{lstlisting}[language=ldgv,numbers=left]
+type Bool : {'T, 'F}
+val not(b: Bool) = (case b {'T: 'F, 'F: 'T})
+fn(x: Bool)
+        fn(y: case x {'T: Int, 'F: Bool})
+              case x {'T: 17+y, 'F: not y}
+\end{lstlisting}
+\caption{Sample LDGV program}
+\label{fig:ldgv-program}
+\end{figure}
