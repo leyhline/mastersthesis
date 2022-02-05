@@ -5,31 +5,45 @@
 
 The \emph{Cast Calculus Label Dependent Lambda Calculus} is an extension to regular LDLC as introduced in section~\ref{sec:ldlc}. It adds an explicit cast between two types, a dynamic type $\star$ as well as related language constructs. CCLDLC is but an intermediate representation between LDLC and a gradual typing extension. Internally, casts at runtime involving the dynamic type must happen explicitly. With gradual typing these type casts are hidden, hence a translation to the cast calculus is necessary.
 
+\section{Exptessions and Types}\label{sec:cc-expressions}
+
 \begin{figure}
 \begin{align*}
  M ::= & \enspace \dots \enspace|\enspace
      M : A \Rightarrow B \enspace|\enspace \blame \\
  A ::= & \enspace \dots \enspace|\enspace
-     \star \enspace|\enspace \bot \enspace|\enspace \top \\
- V ::= & \enspace \dots \enspace
-        |\enspace (V : G \Rightarrow \star) \\
-      & |\enspace (\rho, \lambda(x:A)M) \\
-      & |\enspace (V : (\rho, \Pi(x:A) A') \Rightarrow (\rho, \Pi(x:B) B') )
+     \star \enspace|\enspace \bot \enspace|\enspace \top
 \end{align*}
-\caption{Extensions to LDLC for CCLDLC for expression $M$, types $A, A', B, B'$ and value $V$. Also environment $\rho$, variable $x$ and ground type $G$.}
+\caption{Extensions to LDLC for CCLDLC for expression $M$ and types $A, A', B, B'$.}
 \label{fig:ccldlc-extensions}
 \end{figure}
 
+CCLDLC adds the cast and blame expression as well as the dynamic type, top type and bottom type; see figure~\ref{fig:ccldlc-extensions}.
+The bottom type's single purpose is as type for the blame expression $(\blame : \bot)$. The top type is only used for applying the unfolding rule on the bottom type, evaluating $\bot$ to a function of any argument $\Pi(y:\top)\bot$, the \emph{smallest function type}. Every type $A$ is a subtype of $\top$ ($A \leq \top$) and $\bot$ is a subtype of every type $B$ ($\bot \leq B$). Hence, the smallest function type describes a function accepting any argument, always evaluating to \blame.
+
+\section{Values}
+
 \begin{figure}
 \begin{align*}
+ V ::= & \enspace \dots \enspace
+        |\enspace (V : G \Rightarrow \star) & \text{dynamic wrapper}\\
+      & |\enspace (\rho, \lambda(x:A)M) & \text{closure} \\
+      & |\enspace (V : (\rho, \Pi(x:A) A') \Rightarrow (\rho, \Pi(x:B) B') ) \\
  G ::= & \Unit \enspace|\enspace
     L \enspace|\enspace
     \Single\{V: \Unit\} \enspace|\enspace
     \Single\{V: L\} \\
     & |\enspace
     \Pi(x:\star)\star \enspace|\enspace
-    \Sigma(x:\star)\star
+    \Sigma(x:\star)\star \\
+ \rho ::= & \enspace \cdot \enspace|\enspace \rho, x = V
 \end{align*}
-\caption{Ground types for use in CCLDLC values.}
-\label{fig:ccldlc-ground-types}
+\caption{Values $V$ and ground types $G$ in CCLDLC with environment $\rho$ and variable $x$.}
+\label{fig:ccldlc-extensions-values}
 \end{figure}
+
+Values are extended in a less intuitive way, see figure~\ref{fig:ccldlc-extensions-values}. First, there is a \emph{dynamic wrapper}, casting a value $V$ from a ground type $G$ to the dynamic type $\star$. The whole cast term is a value itself. A ground type indicates a top level type constructor and subtyping capabilities. Hence, label types are ground types, but also the unit type and corresponding singleton types. There are also ground types for function types $\Pi$ where argument and return type are unknown and for pair types $\Sigma$ with unknown component types.\footnote{Here, an ``unknown type'' means unknown at runtime, thus we use the dynamic type $\star$.}
+
+Next, a function closure where the evaluation environment $\rho$ is explicitly part of the value.
+
+And finally a function type cast for value $V$ of a specific function type to another one. \todo{Why is this necessary?}
