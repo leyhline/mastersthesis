@@ -19,7 +19,7 @@ The \emph{Cast Calculus Label Dependent Lambda Calculus} is an extension to regu
 \end{figure}
 
 CCLDLC adds the cast and blame expression as well as the dynamic type, top type and bottom type; see figure~\ref{fig:ccldlc-extensions}.
-The bottom type's single purpose is as type for the blame expression $(\blame : \bot)$. The top type is only used for applying the unfolding rule on the bottom type, evaluating $\bot$ to a function of any argument $\Pi(y:\top)\bot$, the \emph{smallest function type}. Every type $A$ is a subtype of $\top$ ($A \leq \top$) and $\bot$ is a subtype of every type $B$ ($\bot \leq B$). Hence, the smallest function type describes a function accepting any argument, always evaluating to \blame.
+The bottom type's single purpose is as type for the blame expression $(\blame : \bot)$. The top type is only used for unfolding the bottom type, evaluating $\bot$ to a function of any argument $\Pi(y:\top)\bot$, the \emph{smallest function type}. Every type $A$ is a subtype of $\top$ ($A \leq \top$) and $\bot$ is a subtype of every type $B$ ($\bot \leq B$). Hence, the smallest function type describes a function accepting any argument, always evaluating to \blame.
 
 \section{Values}
 
@@ -42,8 +42,79 @@ The bottom type's single purpose is as type for the blame expression $(\blame : 
 \label{fig:ccldlc-extensions-values}
 \end{figure}
 
-Values are extended in a less intuitive way, see figure~\ref{fig:ccldlc-extensions-values}. First, there is a \emph{dynamic wrapper}, casting a value $V$ from a ground type $G$ to the dynamic type $\star$. The whole cast term is a value itself. A ground type indicates a top level type constructor and subtyping capabilities. Hence, label types are ground types, but also the unit type and corresponding singleton types. There are also ground types for function types $\Pi$ where argument and return type are unknown and for pair types $\Sigma$ with unknown component types.\footnote{Here, an ``unknown type'' means unknown at runtime, thus we use the dynamic type $\star$.}
+Values are extended in a less intuitive way, see figure~\ref{fig:ccldlc-extensions-values}. First, there is a \emph{dynamic wrapper}, casting a value $V$ from a ground type $G$ to the dynamic type $\star$. The whole cast term is a value itself. A ground type indicates a top level type constructor and subtyping capabilities. Hence, label types are ground types, together with the unit type and corresponding singleton types. There are also ground types for function types $\Pi$ where argument and return type are unknown and for pair types $\Sigma$ with unknown component types.\footnote{Here, an ``unknown type'' means unknown at runtime, thus we use the dynamic type $\star$.}
 
 Next, a function closure where the evaluation environment $\rho$ is explicitly part of the value.
 
 And finally a function type cast for value $V$ of a specific function type to another one. \todo{Why is this necessary?}
+
+\section{Type Inference Rules / Evaluation Rules}
+
+We now introduce additional evaluation rules, especially for the cast expression. Such a \emph{cast reduction} is written $(V : A^\circ : B^\circ) \Downarrow V$. In contrast, when the evaluation reaches \blame, it simply fails. This failure needs to be handled by the implementation.
+
+\begin{figure}
+\begin{mathpar}
+\inferrule[Cast-Reduce]
+ {\rho \vdash M \downarrow V \and
+ \rho \vdash' A \downarrow A^\circ \and
+ \rho \vdash' B \downarrow B^\circ \and
+ (V : A^\circ \Rightarrow B^\circ) \Downarrow V'}
+ {\rho \vdash (M : A \Rightarrow B) \Downarrow V'}
+\\
+\inferrule[Cast-Is-Value]
+ {V = (V' : A^\circ \Rightarrow B^\circ)}
+ {V \Downarrow V}
+\and
+\inferrule[Cast-Dyn-Dyn]
+ {A^\circ \leq \star}
+ {(V : A^\circ \Rightarrow \star) \Downarrow V}
+\\
+\inferrule[Cast-Sub]
+ {G \leq H}
+ {(V : G \Rightarrow H) \Downarrow V}
+\and
+\inferrule[Cast-Fail]
+ {A^\circ \rhd G \and B^\circ \rhd H \and G \nleq H}
+ {(V : A^\circ \Rightarrow B^\circ) \Downarrow \blame}
+\\
+ \inferrule[Cast-Bot]
+ {}
+ {(V : A^\circ \Rightarrow \bot) \Downarrow \blame}
+\\
+\inferrule[Cast-Collapse]
+ {G \leq H}
+ {((V : G \Rightarrow \star) : \star \Rightarrow H) \Downarrow V}
+\and
+\inferrule[Cast-Collide]
+ {G \nleq H}
+ {((V : G \Rightarrow \star) : \star \Rightarrow H) \Downarrow \blame}
+\\
+\inferrule[Cast-Factor-Left]
+ {A^\circ \rhd G \and A^\circ \neq G \\\\
+  (V:A^\circ \Rightarrow G) \Downarrow V'}
+ {(V : A^\circ \Rightarrow \star) \Downarrow (V' : G \Rightarrow \star)}
+\and
+\inferrule[Cast-Factor-Right]
+ {B^\circ \rhd H \and B^\circ \neq H \\\\
+  (V : \star \Rightarrow H) \Downarrow V' \\\\
+  (V' : H \Rightarrow B^\circ) \Downarrow V''}
+ {(V : \star \Rightarrow B^\circ) \Downarrow V''}
+\\
+\inferrule[Cast-Pair]
+ {\rho \vdash' A \downarrow A^\circ \and \rho' \vdash' A' \downarrow A'^\circ \and
+  (V : A^\circ \Rightarrow A'^\circ) \Downarrow V' \\
+  \rho,x=V \vdash' B \downarrow B^\circ \and \rho',x=V' \vdash' B' \downarrow B'^\circ \and (W:B^\circ \Rightarrow B'^\circ) = W' \\
+ }
+ {(\langle V,W \rangle : (\rho, \Sigma(x:A)B) \Rightarrow (\rho', \Sigma(x:A')B')) \Downarrow \langle V', W' \rangle}
+\\
+\inferrule[Cast-Function]
+ {\rho_\circ \vdash M \downarrow (V : (\rho, \Pi(x:A)B) \Rightarrow (\rho',\Pi(x:A')B')) \and \rho_\circ \vdash N \downarrow W' \\
+  \rho \vdash' A \downarrow A^\circ \and \rho' \vdash' A' \downarrow A'^\circ \and (W' : A'^\circ \Rightarrow A^\circ) \Downarrow W \\
+  \rho',x=W' \vdash' B' \downarrow B'^\circ \and \rho,x=W \vdash' B \downarrow B^\circ \\
+  \rho_\circ \vdash (V W : B^\circ \Rightarrow B'^\circ) \downarrow U'}
+ {\rho_\circ \vdash M N \downarrow U'}
+\end{mathpar}
+\caption{Rules for cast reduction ($\Downarrow$) in CCLDLC.}
+\end{figure}
+
+
