@@ -1,5 +1,5 @@
 \newcommand{\blame}{\text{ \textbf{blame} }}
-\newcommand{\Single}{\text{ \textbf{S} }}
+\newcommand{\Single}{\text{ \textbf{S}}}
 
 \chapter{Cast Calculus}\label{chap:cast-calculus}
 
@@ -42,15 +42,15 @@ The bottom type's single purpose is as type for the blame expression $(\blame : 
 \label{fig:ccldlc-extensions-values}
 \end{figure}
 
-Values are extended in a less intuitive way, see figure~\ref{fig:ccldlc-extensions-values}. First, there is a \emph{dynamic wrapper}, casting a value $V$ from a ground type $G$ to the dynamic type $\star$. The whole cast term is a value itself. A ground type indicates a top level type constructor and subtyping capabilities. Hence, label types are ground types, together with the unit type and corresponding singleton types. There are also ground types for function types $\Pi$ where argument and return type are unknown and for pair types $\Sigma$ with unknown component types.\footnote{Here, an ``unknown type'' means unknown at runtime, thus we use the dynamic type $\star$.}
+Values are extended in a less intuitive way, see figure~\ref{fig:ccldlc-extensions-values}. First, there is a \emph{dynamic wrapper}, casting a value $V$ from a ground type $G$ to the dynamic type $\star$. The whole cast term is a value itself. A ground type indicates an application of dynamic arguments to a top level type constructor as well as subtyping capabilities. Hence, label types are ground types, together with the unit type and corresponding singleton types. There are also ground types for function types $\Pi$ where argument and return type are unknown and for pair types $\Sigma$ with unknown component types.\footnote{Here, an ``unknown type'' means unknown at runtime, thus we use the dynamic type $\star$.}
 
 Next, a function closure where the evaluation environment $\rho$ is explicitly part of the value.
 
 And finally a function type cast for value $V$ of a specific function type to another one. \todo{Why is this necessary?}
 
-\section{Type Inference Rules / Evaluation Rules}
+\section{Type Inference Rules / Evaluation Rules}\label{sec:ccldlc-inference-rules}
 
-We now introduce additional evaluation rules, especially for the cast expression. Such a \emph{cast reduction} is written $(V : A^\circ : B^\circ) \Downarrow V$. In contrast, when the evaluation reaches \blame, it simply fails. This failure needs to be handled by the implementation.
+We now introduce additional evaluation rules, especially for the cast expression. Such a \emph{cast reduction} is written $(V : A^\circ : B^\circ) \Downarrow V'$, and turns a value $V$ of type $A^\circ$ into value $V'$ of type $B^\circ$. In contrast, when the evaluation reaches \blame, it simply fails. This failure needs to be handled by the implementation. The whole set cast reduction rules is listed in figure~\ref{fig:cast-reduction-rules}.
 
 \begin{figure}
 \begin{mathpar}
@@ -115,6 +115,31 @@ We now introduce additional evaluation rules, especially for the cast expression
  {\rho_\circ \vdash M N \downarrow U'}
 \end{mathpar}
 \caption{Rules for cast reduction ($\Downarrow$) in CCLDLC.}
+\label{fig:cast-reduction-rules}
 \end{figure}
 
+In figure~\ref{fig:ccldlc-extensions}, the cast expression $(M : A \Rightarrow B)$ consists of an expression $M$ of type $A$ and a target type $B$. The \textsc{Cast-Reduce} rule describes proceed: In environment $\rho$, the given expression is evaluated ($M \downarrow V$) resulting in a value. As for the types $A$ and $B$, we need to evaluate them into \emph{head normal form} ($A \downarrow A^\circ$; $B \downarrow B^\circ$).
 
+\renewcommand{\mkcitation}[1]{\\--- #1}
+\begin{displayquote}[\cite{peytonjones1987the}]
+A lambda expression in in \emph{head normal form} (HNF) if and only if it is of the form
+\begin{equation*}
+\lambda x_1 . \lambda x_2 \dots \lambda x_n . (v~M_1~M_2~\dots~M_m)
+\end{equation*}
+where $n, m \geq 0$; \\
+\hspace*{11mm}$v$ is a variable ($x_i$), a data object, for a built-in function; \\
+and \hspace*{2mm} $(v~M_1~M_2~\dots~M_p)$ is not a redex for any $p \leq m$.
+\end{displayquote}
+
+The types of CCLDLC evaluate to one of the following HNF types:
+
+\begin{equation}
+\begin{split}
+ A^\circ ::= \bot ~|~ \star ~|~ \Unit ~|~ L ~|~ \Single\{V:A^\circ\} \\
+ |~ (\rho, \Pi(x:A)B) ~|~ (\rho, \Sigma(x:A)B)
+\end{split}
+ \end{equation}
+
+\todo{Is this really head normal form? Or weak head normal form?}
+
+After evaluating the components of the cast expression, the actual cast reduction is invoked.

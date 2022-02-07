@@ -1,6 +1,6 @@
 \chapter{Program Structure}\label{chap:Program Structure}
 
-LDGV is built out of a number of modules. There is a clear hierarchy as seen in the dependency graph in figure~\ref{fig:dependency-graph}. Each functionality builds an independent group of modules:
+LDGV is built out of a number of modules. There is a clear hierarchy as seen in the dependency graph in figure~\ref{fig:dependency-graph}. Each functionality encompasses an independent group of modules:
 
 \begin{itemize}
  \item Module \texttt{Parsing}, including tokenization
@@ -23,17 +23,11 @@ Since the module groups are seperated, only the Interpreter knows about values, 
 
 \section{CCLDLC Adaptions}
 
-For the cast calculus, most adaptions happen in the interpreter, implementing runtime casts. Parts of the aforementioned simplicity has to be abandoned to introduce type passing when necessary.
+For the cast calculus, most adaptions happen in the interpreter, implementing runtime casts. Parts of the aforementioned simplicity regarding type erasure has to be abandoned to introduce \emph{type passing} wheresoever necessary.
 
-But before, we need to implement preliminary language constructs, starting with the most basic module: In the \texttt{Syntax} module, we add a constructor for the cast $(M : A \Rightarrow B)$ to the data type for expressions, accepting an expression $M$ and two types $A$ and $B$. We also add two argumentless types: bottom type $\bot$ and dynamic type $\star$. In section~\ref{sec:cc-expressions} we also mentioned the top type $\top$, which we do not implement. This is because there is no expression of type $\top$. When declaring a function taking an argument of arbitary type, the programmer will use the dynamic type $\lambda(x:\star)M$. This ensures the handling of variable $x$ at runtime. A function $\lambda(x:\top)M$ is only sound if $M = \blame$, which we do not allow because of its unnecessary complexity.
+But first things first, we implement preliminary language constructs, starting with the most basic module: In the \texttt{Syntax} module, we add a constructor for the cast $(M : A \Rightarrow B)$ to the data type for expressions, accepting an expression $M$ and two types $A$ and $B$. We also add two argumentless types: bottom type $\bot$ and dynamic type $\star$. In section~\ref{sec:cc-expressions} we mentioned the top type $\top$, which we do not implement, because there actually is no expression of type $\top$. When declaring a function taking an argument of arbitary type, the programmer will use the dynamic type $\lambda(x:\star)M$. This implies that variable $x$ is handled at runtime. A function $\lambda(x:\top)M$ is only sound if $M = \blame$, which is not necessary since we archive the same result by unfolding \todo{unfolding what?}.
 
 The modules connected to \texttt{Parsing} need to reflect these modifications. We introduce tokens for the dynamic type and the bottom type and extend the grammar accordingly. We also add an expression for casts. See figure~\ref{fig:ccldlc-grammar}.
-
-The module group forming the \texttt{Typechecker} needs to handle the new types. $\bot$ is made a subtype to everything and the subtyping rules for $\star$ are implemented without introducing transitivity. Finally, we check that for an expression $(M : A \Rightarrow B)$ the encapsulated expression $M$ is of type $A$ while the cast itself is handled at runtime by the interpreter.
-
-The interpreter (\todo{and compiler?}) needs most adjustments (there will be a detailed description in the next chapter?) \dots
-
-\todo{What about the C backend? Do this later!}
 
 \begin{figure}
 \begin{lstlisting}[language=ldgv]
@@ -44,3 +38,11 @@ exp : A => B  -- cast expression
 \caption{Extensions to the parser for CCLDLC}
 \label{fig:ccldlc-grammar}
 \end{figure}
+
+The module group forming the \texttt{Typechecker} needs to handle the new types. $\bot$ is made a subtype to everything and the subtyping rules for $\star$ are implemented without introducing transitivity. Finally, we check that for an expression $(M : A \Rightarrow B)$ the encapsulated expression $M$ is of type $A$ while the cast itself is handled at runtime by the interpreter.
+
+The \texttt{Interpreter} \todo{and compiler?} needs most adjustments. The evaluation rules from section~\ref{sec:ccldlc-inference-rules} are applied at runtime. Since there is no direct dependency between typechecker and interpreter, we also exchange no data, i.e. the results of typechecking are disregarded by the interpreter to avoid entanglement. While the typechecker asserts type safety within cast expressions, the actual cast reduction is always defered to the interpretation stage.
+
+\todo{What about the C backend? Do this later!}
+
+We extend the \texttt{ProcessEnvironment} module in a way that introduces the necessary types, i.e. \emph{HNF types} and \emph{ground types}. In the \texttt{Interpreter} module itself, we add functions for type evaluation (to already existing support for expressions and statements) and finally cast reduction. The resulting values are handled as before, making this a conservative extension. The next chapter details these translations from formal rules to actual code.
