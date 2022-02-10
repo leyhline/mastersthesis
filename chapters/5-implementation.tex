@@ -2,7 +2,7 @@
 
 The actual implementation uses the Haskell programming language and related tools. Adjustments in all four module groups as defined in chapter~\ref{chap:program-structure} are necessary. Furthermore, the data types in the fundamental \texttt{Syntax} module must be extended with the additional expression and types introduced in section~\ref{sec:cc-expressions}.
 
-\begin{lstlisting}[language=Haskell]
+\begin{lstlisting}[caption=Syntax.hs]
 data Exp = ...
   | Cast Exp Type Type  -- M : A => B
 
@@ -15,14 +15,14 @@ data Type = ...
 
 As usual, there is a tokenization step before the actual parsing, turning a string into tokens. For this purpose, we use the tool \emph{Alex: A lexical analyser generator for Haskell}\footnote{\url{https://www.haskell.org/alex/}}, maintained by Simon Marlow. It nicely integrates with Haskell. We add but a single token, namely the double arrow used in cast expressions:
 
-\begin{lstlisting}[language=Haskell]
+\begin{lstlisting}[caption=Parsing/Tokens.x]
 data Token = ... | DoubleArrow | ...
 "=>"  { tok $ const DoubleArrow }
 \end{lstlisting}
 
 For parsing, we use \emph{Happy: The Parser Generator for Haskell}\footnote{\url{https://www.haskell.org/happy/}}, also maintained by Simon Marlow. Parsing is slightly more complicated since we need to add the dynamic type $\star$ and the cast expression $M : A \Rightarrow B$.
 
-\begin{lstlisting}[language=Haskell]
+\begin{lstlisting}[caption=Parsing/Grammar.y]
 %token
   ...
   '=>'  { T _ T.DoubleArrow }

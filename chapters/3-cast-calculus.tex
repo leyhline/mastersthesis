@@ -1,6 +1,3 @@
-\newcommand{\blame}{\text{ \textbf{blame} }}
-\newcommand{\Single}{\text{ \textbf{S}}}
-
 \chapter{Cast Calculus}\label{chap:cast-calculus}
 
 The \emph{Cast Calculus Label Dependent Lambda Calculus} is an extension to regular LDLC as introduced in section~\ref{sec:ldlc}. It adds an explicit cast between two types, a dynamic type $\star$ as well as related language constructs. CCLDLC is but an intermediate representation between LDLC and a gradual typing extension. Internally, casts at runtime involving the dynamic type must happen explicitly. With gradual typing these type casts are hidden, hence a translation to the cast calculus is necessary.
@@ -138,8 +135,6 @@ The types of CCLDLC evaluate to one of the following HNF types:
  A^\circ ::= \bot ~|~ \star ~|~ \Unit ~|~ L ~|~ \Single\{V:A^\circ\} \\
  |~ (\rho, \Pi(x:A)B) ~|~ (\rho, \Sigma(x:A)B)
 \end{split}
- \end{equation}
-
-\todo{Is this really head normal form? Or weak head normal form?}
+\end{equation}
 
 After evaluating the components of the cast expression, the actual cast reduction is invoked.

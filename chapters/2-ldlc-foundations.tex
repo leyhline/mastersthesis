@@ -1,18 +1,3 @@
-\newcommand{\letb}{\text{ \textbf{let} }}
-\newcommand{\inb}{\text{ \textbf{in} }}
-\newcommand{\rec}{\text{ \textbf{rec} }}
-\newcommand{\natrec}{\text{ \textbf{natrec} }}
-\newcommand{\fstb}{\text{ \textbf{fst} }}
-\newcommand{\sndb}{\text{ \textbf{snd} }}
-
-\newcommand{\Unit}{\text{ \textbf{Unit} }}
-\newcommand{\Nat}{\text{ \textbf{Nat} }}
-\newcommand{\Double}{\text{ \textbf{Double} }}
-\newcommand{\Bot}{\text{ \textbf{Bot} }}
-
-\newcommand{\valb}{\text{ \textbf{val} }}
-\newcommand{\typeb}{\text{ \textbf{type} }}
-
 \chapter{Foundations}\label{chap:foundations}
 
 Before diving into the \emph{Cast Calculus} we introduce the foundation, the \emph{Label Dependent Lambda Calculus} and its implementation LDGV.
@@ -98,11 +83,10 @@ If one label type $L_1$ is a subset of another label type $L_2$, then $L_1$ is a
 
 LDGV stands for ``Label Dependency'' and ``Gay \& Vasconcelos'', the authors of multiple papers about Session Types, e.g. \cite{gayvasconcelos2010}. In this work's context, it is the name of the interpreter and compiler for LDLC and its extension CCLDLC, written in the Haskell programming language.
 
-Its syntax largely equals the calculus from section~\ref{sec:ldlc}. There are also statements for declarations and assertions, as seen in figure~\ref{fig:ldgv-statements}.
-A label is written as combination of alphanumeric characters, prefixed by an apostroph. Translating equation~\ref{eqn:ldlc} to a valid LDGV program results the sample program in figure~\ref{fig:ldgv-program}.
+Its syntax largely equals the calculus from section~\ref{sec:ldlc}. There are also statements for declarations and assertions, as seen in figure~\ref{lst:ldgv-statements}.
+A label is written as combination of alphanumeric characters, prefixed by an apostroph. Translating equation~\ref{eqn:ldlc} to a valid LDGV program results the sample program in figure~\ref{lst:ldgv-program}.
 
-\begin{figure}
-\begin{lstlisting}[language=ldgv]
+\begin{lstlisting}[language=ldgv,caption=Statements in LDGV,label=lst:ldgv-statements]
 val x = M   -- variable declaration
 val x : A   -- variable signature declaration
 type t : A  -- type declaration
@@ -110,18 +94,11 @@ A <: B      -- subtype assertion
 A =: B      -- type equivalence assertion
 = x M N     -- WHAT DOES THIS DO?
 \end{lstlisting}
-\caption{Statements in LDGV}
-\label{fig:ldgv-statements}
-\end{figure}
 
-\begin{figure}
-\begin{lstlisting}[language=ldgv,numbers=left]
+\begin{lstlisting}[language=ldgv,numbers=left,caption=Sample LDGV program,label=lst:ldgv-program]
 type Bool : {'T, 'F}
 val not(b: Bool) = (case b {'T: 'F, 'F: 'T})
 fn(x: Bool)
         fn(y: case x {'T: Int, 'F: Bool})
               case x {'T: 17+y, 'F: not y}
 \end{lstlisting}
-\caption{Sample LDGV program}
-\label{fig:ldgv-program}
-\end{figure}

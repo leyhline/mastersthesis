@@ -54,6 +54,14 @@
                 pdfborder={0 0 0},backref=false,colorlinks=false]{hyperref}
 
     \usepackage{listings}
+    \lstloadlanguages{Haskell}
+    \lstset{language=Haskell,frame=lines,lineskip=1ex,basicstyle=\small}
+    \lstdefinelanguage{ldgv}{
+        morekeywords={let,in,rec,natrec,fst,snd,Unit,Nat,Double,Bot,val,type,fn,case},
+        sensitive=true,
+        morecomment=[l]{--}
+    }
+
     \usepackage{mathpartir}
     \usepackage{csquotes}
 
@@ -144,3 +152,22 @@
     % set distance between items in a list, for more details see the
     % enumitem package: https://www.ctan.org/pkg/enumitem
     \setlist{itemsep=.5em}
+
+\newcommand{\case}{\text{ \textbf{case} }}
+\newcommand{\Bool}{\text{ \textbf{Bool} }}
+\newcommand{\Int}{\text{ \textbf{Int} }}
+\newcommand{\notf}{\text{ not }}
+\newcommand{\letb}{\text{ \textbf{let} }}
+\newcommand{\inb}{\text{ \textbf{in} }}
+\newcommand{\rec}{\text{ \textbf{rec} }}
+\newcommand{\natrec}{\text{ \textbf{natrec} }}
+\newcommand{\fstb}{\text{ \textbf{fst} }}
+\newcommand{\sndb}{\text{ \textbf{snd} }}
+\newcommand{\Unit}{\text{ \textbf{Unit} }}
+\newcommand{\Nat}{\text{ \textbf{Nat} }}
+\newcommand{\Double}{\text{ \textbf{Double} }}
+\newcommand{\Bot}{\text{ \textbf{Bot} }}
+\newcommand{\valb}{\text{ \textbf{val} }}
+\newcommand{\typeb}{\text{ \textbf{type} }}
+\newcommand{\blame}{\text{ \textbf{blame} }}
+\newcommand{\Single}{\text{ \textbf{S}}}

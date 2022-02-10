@@ -1,14 +1,3 @@
-\lstdefinelanguage{ldgv}{
-    morekeywords={let,in,rec,natrec,fst,snd,Unit,Nat,Double,Bot,val,type,fn,case},
-    sensitive=true,
-    morecomment=[l]{--}
-}
-
-\newcommand{\case}{\text{ \textbf{case} }}
-\newcommand{\Bool}{\text{ \textbf{Bool} }}
-\newcommand{\Int}{\text{ \textbf{Int} }}
-\newcommand{\notf}{\text{ not }}
-
 \chapter{Introduction}\label{chap:introduction}
 
 In programming, dependent types are the next step in the unification of language constructs. Not only values and functions but also types are first class constructs. This goes along with a number of practical advantages: Types may now depend on values, allowing a more precise typing, consequently better correctness guarantees and more expressive power when describing programs. Nevertheless, such power comes at a cost: As the difference between proof and program grows hazy, typechecking and program interpretation will face similar problems. The former becomes more costly and might be subject to the halting problem.
@@ -78,7 +67,7 @@ Since this work is about building an implementation, there needs to be a distinc
 
 Then again, actual code should precisely reflect the capabilities of LDGV. One can feed it verbatim to the interpreter. It is written in a monospaced font.
 
-\begin{lstlisting}[language=ldgv]
+\begin{lstlisting}[language=ldgv,caption=Code listing example]
 val x = 'foo
 type A : { 'foo }
 \end{lstlisting}
