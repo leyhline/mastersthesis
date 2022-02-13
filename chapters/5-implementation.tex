@@ -13,26 +13,125 @@ data Type = ...
 
 \section{Parsing}
 
-As usual, there is a tokenization step before the actual parsing, turning a string into tokens. For this purpose, we use the tool \emph{Alex: A lexical analyser generator for Haskell}\footnote{\url{https://www.haskell.org/alex/}}, maintained by Simon Marlow. It nicely integrates with Haskell. We add but a single token, namely the double arrow used in cast expressions:
+As usual, there is a tokenization step before the actual parsing, turning a string into tokens. For this purpose, we use the tool \emph{Alex: A lexical analyser generator for Haskell}\footnote{\url{https://www.haskell.org/alex/}}, maintained by Simon Marlow, as it nicely integrates with Haskell. We add tokens for the bottom type and the the double arrow used in cast expressions. In our implementation, we use \texttt{*} as identifier for the dynamic type. There already exists a corresponding token since it was used for multiplication in the base language.
 
 \begin{lstlisting}[caption=Parsing/Tokens.x]
-data Token = ... | DoubleArrow | ...
-"=>"  { tok $ const DoubleArrow }
+data Token = ...
+  | TBot
+  | DoubleArrow
+
+tokens :-
+  ...
+  Bot    { tok $ const TBot }
+  "_|_"  { tok $ const TBot }
+  "=>"   { tok $ const DoubleArrow }
 \end{lstlisting}
 
-For parsing, we use \emph{Happy: The Parser Generator for Haskell}\footnote{\url{https://www.haskell.org/happy/}}, also maintained by Simon Marlow. Parsing is slightly more complicated since we need to add the dynamic type $\star$ and the cast expression $M : A \Rightarrow B$.
+For parsing, we use \emph{Happy: The Parser Generator for Haskell}\footnote{\url{https://www.haskell.org/happy/}}, also maintained by Simon Marlow. Parsing is slightly more complicated since we need to add the dynamic type $\star$, bottom type and the cast expression $M : A \Rightarrow B$.
 
 \begin{lstlisting}[caption=Parsing/Grammar.y]
 %token
   ...
+  Bot   { T _ T.TBot }
   '=>'  { T _ T.DoubleArrow }
-  '*'   { T _ (T.Sym '*') }
 
 Exp = ...
   | Exp ':' Typ '=>' Typ  { Cast $1 $3 $5 }
 
-Typ = ATyp | ...
-
 ATyp = ...
   | '*'  { TDyn }
+  | Bot  { TBot }
 \end{lstlisting}
+
+\section{Typechecker}
+
+Since terms involving the newly introduced dynamic type are handled at runtime there is no need for extensive changes to the typechecker. Nevertheless, we need to integrate the new syntax. Otherwise, typechecking would fail, not because of type errors but out of ignorance.
+
+\subsection{Type Synthesis}
+
+In general, type synthesis $\Gamma \vdash M \Rightarrow A;\Delta$ takes environment $\Gamma$ and expression $M$ to synthesize its type $A$ and the environment after $\Delta$. We adjust the corresponding function for the following expressions: (1) application, (2) pair construction and for built-in functions (3) \texttt{fst} and (4) \texttt{snd} (both eliminating pairs, yielding the first or second element). In code, it is complemented by a monad transformer, as seen in its annotation, though this is not relevant here.
+
+\begin{lstlisting}[caption=\texttt{tySynth} function type annotation]
+tySynth :: TEnv -> Exp -> TCM (Type, TEnv)
+
+type TCM a =
+  WriterT [Constraint] (ExceptT String (State Caches)) a
+
+data Caches = Caches{subCache::Cache, eqvCache::Cache}
+type Cache = [(Type, Type)]
+
+data Constraint = Type :<: Type
+\end{lstlisting}
+
+For application $M N$, after synthesizing $\Gamma \vdash M \Rightarrow A;\Delta$ and if $A = \star$, we assert that expression $N$ also has dynamic type $\star$.
+
+\begin{lstlisting}[caption=TCTyping.hs]
+tySynth te (App e1 e2) = do
+  (tf, te1) <- tySynth te e1
+  tfu <- unfold te1 tf
+  case tfu of
+    -- ...
+    TDyn -> do
+      te2 <- tyCheck te1 e2 TDyn
+      return (TDyn, te2)
+\end{lstlisting}
+
+An expression involving pairs is ``\lstinline[language=ldgv]!let <x, y> = M in N!'', where $M$ has a pair type. First, the components of $M$ are bound to $x$ and $y$, finally evaluating $N$. For typecheckig, we first synthesize type $A$ from $M$. Finally, we synthesize $\Delta_A, x:\star, y:\star \vdash N \Rightarrow B$ for the whole expression's type.
+
+\begin{lstlisting}[caption=TCTyping.hs]
+tySynth te (LetPair x y e1 e2) = do
+  (tp, te1) <- tySynth te e1
+  tpu <- unfold te1 tp
+  case tpu of
+    TPair {} -> -- ...
+    TDyn -> tySynth
+      ((y, (Many, TDyn)) : (x, (Many, TDyn)) : te1)
+      e2
+\end{lstlisting}
+
+The built-in functions \texttt{fst} and \texttt{snd} simply return the dynamic type $\star$ upon type synthesis since a pair type $\Sigma(x:\star)\star$ implies that both components are of type $\star$, too.
+
+\subsection{Subtyping}
+
+Subtyping regarding the dynamic type happens in the context of \case, used for eliminating label types. For term $\case (x:\star \Rightarrow A) \{ \overline{\ell : N_\ell} \}$ we check if type $A$ is a subtype of $N_\ell$. Both are sets of label, hence $A \leq N_\ell$ if $A \subseteq N_\ell$.
+
+\begin{lstlisting}[caption=TCSubtyping.hs]
+unfold :: TEnv -> Type -> TCM Type
+unfold tenv (TCase val@(Var x) cases) = do
+  tyx <- varlookupUnfolding x tenv
+  let f :: (String, Type) -> TCM Type
+      f (lab, labtyp) = unfold
+        (("*unfold*", TEqn val (Lit $ LLab lab) tyx) : tenv)
+        labtyp
+  case tyx of
+    TLab {} -> -- ...
+    TDyn -> mapM f cases
+  where f ::
+\end{lstlisting}
+
+\section{Interpreter}
+
+In basic LDGV, types are not relevant in context of evaluation. The interpreter works on the assumption that prior typechecking did succeed. In our extension, cast expressions are always handled at runtime, even if both types in a cast $V : A^\circ \Rightarrow B^\circ$ are not dynamic ($A \neq \star, B \neq \star$).
+For correct handling of the dynamic type and type reduction of cast expressions we introduce new data types and extend the existing data type for values. Furthermore, we implement the rules of section~\ref{sec:ccldlc-inference-rules}.
+
+\subsection{Type passing}
+
+Since types reduction requires \emph{head normal form} we introduce an explicit data type.
+
+\begin{lstlisting}[caption=ProcessEnvironment.hs]
+data NFType
+  = NFBot
+  | NFDyn
+  | NFUnit
+  | NFLabel LabelType
+  | NFFunc FuncType
+  | NFPair FuncType
+  | NFInt
+  | NFDouble
+  | NFGType GType
+
+data FuncType = FuncType PEnv String S.Type S.Type
+\end{lstlisting}
+
+
+\subsection{Type inference}
