@@ -1,6 +1,6 @@
 \chapter{Cast Calculus}\label{chap:cast-calculus}
 
-The \emph{Cast Calculus Label Dependent Lambda Calculus} is an extension to regular LDLC as introduced in section~\ref{sec:ldlc}. It adds an explicit cast between two types, a dynamic type $\star$ as well as related language constructs. CCLDLC is but an intermediate representation between LDLC and a gradual typing extension. Internally, casts at runtime involving the dynamic type must happen explicitly. With gradual typing these type casts are hidden, hence a translation to the cast calculus is necessary.
+The \emph{Cast Calculus Label Dependent Lambda Calculus} is an extension to regular LDLC as introduced in section~\ref{sec:ldlc}. It adds an explicit cast between two types, a dynamic type $\star$ as well as related language constructs. CCLDLC is but an intermediate representation between LDLC and a gradual typing extension GLDLC. With gradual typing, type casts involving the dynamic type are hidden and are handled internally. Here, translation to the cast calculus is necessary.
 
 \section{Exptessions and Types}\label{sec:cc-expressions}
 
@@ -39,7 +39,7 @@ The bottom type's single purpose is as type for the blame expression $(\blame : 
 \label{fig:ccldlc-extensions-values}
 \end{figure}
 
-Values are extended in a less intuitive way, see figure~\ref{fig:ccldlc-extensions-values}. First, there is a \emph{dynamic wrapper}, casting a value $V$ from a ground type $G$ to the dynamic type $\star$. The whole cast term is a value itself. A ground type indicates an application of dynamic arguments to a top level type constructor as well as subtyping capabilities. Hence, label types are ground types, together with the unit type and corresponding singleton types. There are also ground types for function types $\Pi$ where argument and return type are unknown and for pair types $\Sigma$ with unknown component types.\footnote{Here, an ``unknown type'' means unknown at runtime, thus we use the dynamic type $\star$.}
+Values are extended in a less intuitive way, see figure~\ref{fig:ccldlc-extensions-values}. First, there is a \emph{dynamic wrapper}, representing a cast of value $V$ from a ground type $G$ to dynamic type $\star$. The whole cast term is a value itself. A ground type indicates an application of dynamic arguments to a top level type constructor as well as subtyping capabilities. Hence, label types are ground types, together with the unit type and corresponding singleton types. There are also ground types for function types $\Pi$ where argument and return type are unknown and for pair types $\Sigma$ with unknown component types.\footnote{Here, an ``unknown type'' means unknown at runtime, thus we use the dynamic type $\star$.}
 
 Next, a function closure where the evaluation environment $\rho$ is explicitly part of the value.
 
@@ -117,6 +117,8 @@ We now introduce additional evaluation rules, especially for the cast expression
 
 In figure~\ref{fig:ccldlc-extensions}, the cast expression $(M : A \Rightarrow B)$ consists of an expression $M$ of type $A$ and a target type $B$. The \textsc{Cast-Reduce} rule describes proceed: In environment $\rho$, the given expression is evaluated ($M \downarrow V$) resulting in a value. As for the types $A$ and $B$, we need to evaluate them into \emph{head normal form} ($A \downarrow A^\circ$; $B \downarrow B^\circ$).
 
+\vspace{4ex}\hrule
+
 \renewcommand{\mkcitation}[1]{\\--- #1}
 \begin{displayquote}[\cite{peytonjones1987the}]
 A lambda expression in in \emph{head normal form} (HNF) if and only if it is of the form
@@ -128,6 +130,8 @@ where $n, m \geq 0$; \\
 and \hspace*{2mm} $(v~M_1~M_2~\dots~M_p)$ is not a redex for any $p \leq m$.
 \end{displayquote}
 
+\hrule\vspace{4ex}
+
 The types of CCLDLC evaluate to one of the following HNF types:
 
 \begin{equation}
@@ -137,4 +141,18 @@ The types of CCLDLC evaluate to one of the following HNF types:
 \end{split}
 \end{equation}
 
-After evaluating the components of the cast expression, the actual cast reduction is invoked.
+After evaluating the components of the cast expression, the actual cast reduction is invoked, resulting in a single value. For many rules, this is the same as discarding the type cast, simply returning the value on valid casts.
+
+Some rules make use of \emph{type matching} from HNF types to ground types using the $\rhd$ operator. These are \textsc{Cast-Fail}, \textsc{Cast-Factor-Left} and \textsc{Cast-Factor-Right}. Note that type matching does not work from ground types to HNF types since the former are more general.
+
+\begin{figure}
+\begin{align*}
+\Unit &\rhd \Unit \\
+L &\rhd L \\
+(\rho, \Pi (x:A)B) &\rhd \Pi(x:\star)\star \\
+(\rho, \Sigma (x:A)B) &\rhd \Sigma(x:\star)\star \\
+\Single \{ V:A \} &\rhd \Single \{ V : A \}
+\end{align*}
+\caption{Type matching from HNF type $A^\circ$ to ground type $G$}
+\label{fig:ccldlc-type-matching}
+\end{figure}

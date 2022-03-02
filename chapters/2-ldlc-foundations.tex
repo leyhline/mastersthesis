@@ -56,9 +56,8 @@ Another two language concepts are more interesting: First and foremost, the supp
     V, W ::=
     & \enspace () \enspace|\enspace
       \ell \enspace|\enspace
-      x \in \mathbb{R} \\
-    & |\enspace (\rho, \lambda (x:A).M) & \text{function value} \\
-    & |\enspace \langle V, W \rangle & \text{pair value} \\
+      x \in \mathbb{R} \enspace
+     |\enspace \langle V, W \rangle \\
     \rho ::= & \enspace \cdot \enspace | \enspace \rho, x = V & \text{environment}
 \end{align*}
 \caption{Values in LDLC}
@@ -82,6 +81,18 @@ In addition to label dependency, there is another construct dependency on natura
 Value $V$ must be a natural number value which can also be written recursively using the constructors $Z$ (for zero) and $S(V)$ for the successor of $V$. An encoding for a natural number is given by $\overline{n} = S(\dots S(Z))$. When evaluating a recursor, there is a case differentiation by value $V$.
 
 If $V=Z$ the whole expression is reduced to $M$, discarding its latter term. Otherwise, for $V=S(V')$, the \rec expression is reduced to expression $N$ with the following two substitutions: variable $x$ in $N$ is substituted by $V'$, the precessor of $S(V')$; variable $y$ by $\rec V'~M~x.y.N$, the result of the ``previous'' evaluation of the recursor.
+
+\begin{figure}
+ \begin{align*}
+ & \rec Z~M~x.y.N \longrightarrow M \\
+ & \rec S(V)~M~x.y.N \longrightarrow N [V/x] [\rec V~M~x.y.N/y] \\
+ & \rec Z~A~t.B \equiv A \\
+ & \rec S(V)~A~t.B \equiv B [\rec V~A~t.B/t]
+\end{align*}
+\caption{Nat. recursor expression reduction and type equivalence}
+\label{fig:ldlc-rec-exp}
+\end{figure}
+
 
 It is similar for type conversion of $\rec V~A~t.B$. For $V=Z$, the resulting type is simply $A$. As for $V=S(V')$, the resulting type is given by $B$ after substituting type identifier $t$ in $B$ with $\rec V'~A~t.B$.
 

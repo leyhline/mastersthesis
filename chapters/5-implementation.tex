@@ -1,8 +1,8 @@
 \chapter{Implementation}\label{chap:implementation}
 
-The actual implementation uses the Haskell programming language and related tools. Adjustments in all four module groups as defined in chapter~\ref{chap:program-structure} are necessary. Furthermore, the data types in the fundamental \texttt{Syntax} module must be extended with the additional expression and types introduced in section~\ref{sec:cc-expressions}.
+The actual implementation uses the Haskell programming language and related tools. There are adjustments in all three module groups as classified in chapter~\ref{chap:program-structure}. Furthermore, we extend the data types in the fundamental \texttt{Syntax} module with additional expressions and types from section~\ref{sec:cc-expressions}.
 
-\begin{lstlisting}[caption=Syntax.hs]
+\begin{lstlisting}[caption=Extensions to \texttt{Syntax.hs}]
 data Exp = ...
   | Cast Exp Type Type  -- M : A => B
 
@@ -15,7 +15,7 @@ data Type = ...
 
 As usual, there is a tokenization step before the actual parsing, turning a string into tokens. For this purpose, we use the tool \emph{Alex: A lexical analyser generator for Haskell}\footnote{\url{https://www.haskell.org/alex/}}, maintained by Simon Marlow, as it nicely integrates with Haskell. We add tokens for the bottom type and the the double arrow used in cast expressions. In our implementation, we use \texttt{*} as identifier for the dynamic type. There already exists a corresponding token since it was used for multiplication in the base language.
 
-\begin{lstlisting}[caption=Parsing/Tokens.x]
+\begin{lstlisting}[caption=Additional tokens (\texttt{Parsing/Tokens.x})]
 data Token = ...
   | TBot
   | DoubleArrow
@@ -29,7 +29,7 @@ tokens :-
 
 For parsing, we use \emph{Happy: The Parser Generator for Haskell}\footnote{\url{https://www.haskell.org/happy/}}, also maintained by Simon Marlow. Parsing is slightly more complicated since we need to add the dynamic type $\star$, bottom type and the cast expression $M : A \Rightarrow B$.
 
-\begin{lstlisting}[caption=Parsing/Grammar.y]
+\begin{lstlisting}[caption=Extensions to \texttt{Parsing/Grammar.y}]
 %token
   ...
   Bot   { T _ T.TBot }
@@ -45,7 +45,7 @@ ATyp = ...
 
 \section{Typechecker}
 
-Since terms involving the newly introduced dynamic type are handled at runtime there is no need for extensive changes to the typechecker. Nevertheless, we need to integrate the new syntax. Otherwise, typechecking would fail, not because of type errors but out of ignorance.
+Since terms involving the newly introduced dynamic type are handled at runtime there is no need for extensive changes to the typechecker. Nevertheless, we need to integrate the new syntax. Otherwise, typechecking would fail, not because of type errors but out of ``ignorance''.
 
 \subsection{Type Synthesis}
 
@@ -63,9 +63,9 @@ type Cache = [(Type, Type)]
 data Constraint = Type :<: Type
 \end{lstlisting}
 
-For application $M N$, after synthesizing $\Gamma \vdash M \Rightarrow A;\Delta$ and if $A = \star$, we assert that expression $N$ also has dynamic type $\star$.
+For application $M~N$, after synthesizing $\Gamma \vdash M \Rightarrow A;\Delta$ and if $A = \star$, we assert that expression $N$ also has dynamic type $\star$.
 
-\begin{lstlisting}[caption=TCTyping.hs]
+\begin{lstlisting}[caption=Application type synthesis (\texttt{TCTyping.hs})]
 tySynth te (App e1 e2) = do
   (tf, te1) <- tySynth te e1
   tfu <- unfold te1 tf
@@ -76,9 +76,9 @@ tySynth te (App e1 e2) = do
       return (TDyn, te2)
 \end{lstlisting}
 
-An expression involving pairs is ``\lstinline[language=ldgv]!let <x, y> = M in N!'', where $M$ has a pair type. First, the components of $M$ are bound to $x$ and $y$, finally evaluating $N$. For typecheckig, we first synthesize type $A$ from $M$. Finally, we synthesize $\Delta_A, x:\star, y:\star \vdash N \Rightarrow B$ for the whole expression's type.
+An expression involving pairs is ``\lstinline[language=ldgv]!let <x, y> = M in N!'', where $M$ has a pair type. First, the components of $M$ are bound to $x$ and $y$, finally evaluating $N$. For typecheckig, we synthesize type $A$ from $M$. Afterwards, we synthesize $\Delta_A, x:\star, y:\star \vdash N \Rightarrow B$ for the whole expression's type.
 
-\begin{lstlisting}[caption=TCTyping.hs]
+\begin{lstlisting}[caption=Pair type synthesis (\texttt{TCTyping.hs})]
 tySynth te (LetPair x y e1 e2) = do
   (tp, te1) <- tySynth te e1
   tpu <- unfold te1 tp
@@ -93,9 +93,9 @@ The built-in functions \texttt{fst} and \texttt{snd} simply return the dynamic t
 
 \subsection{Subtyping}
 
-Subtyping regarding the dynamic type happens in the context of \case, used for eliminating label types. For term $\case (x:\star \Rightarrow A) \{ \overline{\ell : N_\ell} \}$ we check if type $A$ is a subtype of $N_\ell$. Both are sets of label, hence $A \leq N_\ell$ if $A \subseteq N_\ell$.
+Subtyping regarding the dynamic type happens in the context of \case, used for eliminating label types. For a term $\case (x:\star \Rightarrow A) \{ \overline{\ell : N_\ell} \}$ we check if type $A$ is a subtype of $N_\ell$. Both are sets of labels, hence $A \leq N_\ell$ if $A \subseteq N_\ell$.
 
-\begin{lstlisting}[caption=TCSubtyping.hs]
+\begin{lstlisting}[caption=Subtyping in case terms (\texttt{TCSubtyping.hs})]
 unfold :: TEnv -> Type -> TCM Type
 unfold tenv (TCase val@(Var x) cases) = do
   tyx <- varlookupUnfolding x tenv
@@ -111,21 +111,21 @@ unfold tenv (TCase val@(Var x) cases) = do
 
 \section{Interpreter}
 
-In basic LDGV, types are not relevant in context of evaluation. The interpreter works on the assumption that prior typechecking did succeed. In our extension, cast expressions are always handled at runtime, even if both types in a cast $V : A^\circ \Rightarrow B^\circ$ are not dynamic ($A \neq \star, B \neq \star$).
+In basic LDGV, types are not relevant in context of evaluation. The interpreter works on the assumption that prior typechecking did succeed. In our extension, cast expressions are always handled at runtime, even if both types in a cast $M : A \Rightarrow B$ are not dynamic ($A \neq \star, B \neq \star$).
 For correct handling of the dynamic type and type reduction of cast expressions we introduce new data types and extend the existing data type for values. Finally, we implement the rules of section~\ref{sec:ccldlc-inference-rules}.
 
-\todo{What about Singletons?}
+In chapter~\ref{chap:cast-calculus} we listed rules for handling singleton types $\Single\{A\}$ as given in the original paper. The implementation does not support explicit singleton types in its grammer. Therefore, from this point onwards, singleton types will not be considered.
 
-\subsection{Type passing}
+\subsection{Type Passing}
 
-Since types reduction requires \emph{head normal form} we introduce an explicit data type \texttt{NFType}. Label type $L$ is implemented as a set of strings. Similarities between function type $(\rho, \Pi(x:A)B)$ and pair type $(\rho, \Sigma(x:A)B)$ are  depicted using the \texttt{FuncType} data type.
+Since type reduction requires \emph{head normal form} we introduce an explicit data type \texttt{NFType} in listing~\ref{lst:hnf-typedef}. Label type $L$ is implemented as a set of strings. Similarities between function type $(\rho, \Pi(x:A)B)$ and pair type $(\rho, \Sigma(x:A)B)$ are  depicted using the \texttt{FuncType} data type.
 
-\begin{lstlisting}[caption=ProcessEnvironment.hs]
+\begin{lstlisting}[float,
+  label=lst:hnf-typedef,
+  caption=HNF type definition (\texttt{ProcessEnvironment.hs})]
 data NFType
   = NFBot
   | NFDyn
-  | NFUnit
-  | NFLabel LabelType
   | NFFunc FuncType
   | NFPair FuncType
   | NFInt
@@ -137,9 +137,11 @@ type LabelType = Set Label
 data FuncType = FuncType PEnv String Type Type
 \end{lstlisting}
 
-The constructor \texttt{NFGType} is a special case. It takes an argument of type \texttt{GType}---the data type implementing \emph{ground types}---which we define next. This type dependency depicts that every ground type is also in head normal form while making comparison operations between \texttt{NFType} and \texttt{GType} possible. At the same time, defining ground types as a separate data type allows for more precise functions.
+The constructor \texttt{NFGType} is a special case. It takes an argument of type \texttt{GType}---the data type implementing \emph{ground types}---which we define in listing~\ref{lst:gtype}. This type dependency depicts that every ground type is also in head normal form---but not the other way around---while making comparison operations between \texttt{NFType} and \texttt{GType} possible. At the same time, defining ground types as a separate data type allows for more precise function signatures. Even so, we can not perfectly model the relationship since Haskell itself is not dependently typed. A function type $(\cdot, \Pi(x:\star)\star)$ can be written as simple \texttt{NFGType GFunc} or as \texttt{NFFunc (FuncType [] "x" TDyn TDyn)}. The latter is semantically correct but must not occur. We have to resort to helper function \texttt{equalsType} to resolve such cases.
 
-\begin{lstlisting}[caption=ProcessEnvironment.hs,label=lst:gtype]
+\begin{lstlisting}[float,
+  caption=Ground type definition (\texttt{ProcessEnvironment.hs}),
+  label=lst:gtype]
 data GType
   = GUnit
   | GLabel LabelType
@@ -147,17 +149,17 @@ data GType
   | GPair
 
 equalsType :: NFType -> GType -> Bool
-equalsType NFUnit GUnit = True
-equalsType (NFLabel ls1) (GLabel ls2) = ls1 == ls2
 equalsType (NFFunc (FuncType _ _ TDyn TDyn)) GFunc = True
 equalsType (NFPair (FuncType _ _ TDyn TDyn)) GPair = True
 equalsType (NFGType gt1) gt2 = gt1 == gt2
 equalsType _ _ = False
 \end{lstlisting}
 
-Subtyping checks are implemented with typeclass \texttt{Subtypeable} with instances for ground types \texttt{GType}---mostly with trivial definitions---and partially for HNF types \texttt{NFType}. The latter is solely necessary for implementing the \emph{Cast-Dyn-Dyn} rule.
+Subtyping checks are implemented in listing~\ref{lst:subtypeable} instroducing typeclass \texttt{Subtypeable} with instances for ground types \texttt{GType}---mostly with trivial definitions---and partially for HNF types \texttt{NFType}. The latter is solely necessary for implementing the \emph{Cast-Dyn-Dyn} rule.
 
-\begin{lstlisting}[caption=ProcessEnvironment.hs]
+\begin{lstlisting}[float,
+  label=lst:subtypeable,
+  caption=Subtypeable typeclass (\texttt{ProcessEnvironment.hs})]
 class Subtypeable t where
   isSubtypeOf :: t -> t -> Bool
 
@@ -176,22 +178,50 @@ instance Subtypeable NFType where
   isSubtypeOf _ _ = False
 \end{lstlisting}
 
-We also extend the value type for $V : G \Rightarrow \star$ and function casts:
+We also extend the value type according to section~\ref{sec:cc-expressions}. We add function closures, including environment $\rho$, variable name and the expression in the function's body. Furthermore function casts and the dynamic wrapper $V : G \Rightarrow \star$.
 
-\begin{lstlisting}[caption=ProcessEnvironment.hs]
+\begin{lstlisting}[caption=Value type extensions (\texttt{ProcessEnvironment.hs})]
 data Value = -- ...
-  | VDynCast Value GType
+  | VFunc PEnv String Exp
   | VFuncCast Value FuncType FuncType
+  | VDynCast Value GType
 \end{lstlisting}
 
+We use these new and extended data types to handle CCLDLC's types during the interpretation state, especially for type inference in cast expressions. At last, we need a mapping to HNF types used in type casts. We introduce the \texttt{evalType} function in listing~\ref{lst:type-eval} to evaluate types to their HNF form. Mostly, this evaluation is trivial. For function and pair types, the environment is made part of the type. Most involved is evaluation of the $\case x~\{\ell_i : A_i\}$ type since case types are never in HNF. We match label $x \downarrow \ell_j$ on the type mapping, finally evaluating $A_j \downarrow A^\circ$. If possible, we evaluate to ground types and wrap them using the \texttt{NFGType} constructor.
 
-\subsection{Type inference}
+\begin{lstlisting}[float,
+  caption=Type evaluation (\texttt{Interpreter.hs}),
+  label=lst:type-eval]
+evalType :: Type -> InterpretM NFType
+evalType = \case
+  TUnit   -> return $ NFGType GUnit
+  TInt    -> return NFInt
+  TDouble -> return NFDouble
+  TBot    -> return NFBot
+  TDyn    -> return NFDyn
+  TLab ls -> return $ NFGType $ GLabel ls
+  TFun  _ _ TDyn TDyn -> return $ NFGType GFunc
+  TFun  _ s t1 t2 -> do
+    env <- ask
+    return $ NFFunc $ FuncType env s t1 t2
+  TPair _ _ TDyn TDyn -> return $ NFGType GPair
+  TPair _ s t1 t2 -> do
+    env <- ask
+    return $ NFPair $ FuncType env s t1 t2
+  TCase exp labels -> interpret' exp >>= \(VLabel l) ->
+    let entry = find (\(l', _) -> l == l') labels
+    in maybe (return NFBot) (evalType . snd) entry
+\end{lstlisting}
 
-The goal of type inference at runtime is to either reduce casts in a way that evaluation halts at a value, or to abort evaluation with \blame which will throw an exception. Here, we describe the implementation of the rules we stated in figure~\ref{fig:ccldlc-extensions-values}.
+\subsection{Cast Reduction}
 
-We extended the language with cast expression $M : A \Rightarrow B$. A cast reduction needs form $V : A^\circ \Rightarrow B^\circ$. Hence, we use rule \textsc{Cast-Reduce} to evaluate expression $M$ to value $V$ and types $A$ and $B$ to HNF types $A^\circ$ and $B^\circ$. For that purpose, we extend the existing \texttt{eval} function.
+The goal of type inference at runtime is to either reduce casts in a way that evaluation halts at a value, or to abort evaluation with \blame. In our implementation, the latter throws an exception. During this section we describe the implementation of the rules stated in figure~\ref{fig:ccldlc-extensions-values}.
 
-\begin{lstlisting}[caption=Interpreter.hs,label=lst:cast-reduce]
+We extended the language with cast expression $M : A \Rightarrow B$. However, a cast reduction has to have form $V : A^\circ \Rightarrow B^\circ$. Hence, we use rule \textsc{Cast-Reduce} to evaluate expression $M$ to value $V$ and types $A$ and $B$ to HNF $A^\circ$ and $B^\circ$ respectively. For that purpose, we extend the existing \texttt{eval} function according to listing~\ref{lst:cast-reduce}. This function implements the interpreter's main logic, mapping all the language's expressions (see figure~\ref{fig:ldlc-expressions}) to values. The \texttt{InterpretM} monad from the function's signature represents evaluation environment $\rho$, providing the \emph{Reader} monad's interface.\footnote{\url{https://hackage.haskell.org/package/transformers-0.6.0.4/docs/Control-Monad-Trans-Reader.html}}
+
+\begin{lstlisting}[float,
+  caption=Cast expression evaluation (\texttt{Interpreter.hs}),
+  label=lst:cast-reduce]
 eval :: Exp -> InterpretM Value
 eval cast@(Cast e t1 t2) = do
   v <- interpret' e
@@ -200,33 +230,13 @@ eval cast@(Cast e t1 t2) = do
   maybe (blame cast) return (reduceCast v nft1 nft2)
 \end{lstlisting}
 
-Here, we also introduce the \texttt{evalType} function since types and type evaluation were not relevant before (see \emph{type erasure}). Mostly, the evaluation to HNF types is trivial. For function and pair types, the environment is made part of the type. Most involved is evaluation of the $\case x~\{\ell_i : A_i\}$ type since no such type is in HNF. We match label $x \downarrow \ell_j$ on the type mapping, finally evaluating $A_j \downarrow A^\circ$.
+Cast reduction $V : A^\circ \Rightarrow B^\circ \Downarrow V'$ is implemented in the \texttt{reduceCast} function. Its type signature matches the term as it requires a value and two types in HNF. However, upon failure it will not return \blame directly but encapsulates its result into a \texttt{Maybe} type. Then, the calling function needs to call \blame upon an empty result (e.g. see listing~\ref{lst:cast-reduce}).
 
-\begin{lstlisting}[caption=Interpreter.hs]
-evalType :: Type -> InterpretM NFType
-evalType = \case
-  TUnit -> return NFUnit
-  TInt -> return NFInt
-  TDouble -> return NFDouble
-  TBot -> return NFBot
-  TDyn -> return NFDyn
-  TLab ls -> return $ NFLabel ls
-  TFun _ s t1 t2 -> do
-    penv <- ask
-    return $ NFFunc $ FuncType penv s t1 t2
-  TPair _ s t1 t2 -> do
-    penv <- ask
-    return $ NFPair $ FuncType penv s t1 t2
-  TCase exp labels -> interpret' exp >>= \(VLabel l) ->
-    let entry = find (\(l', _) -> l == l') labels
-    in maybe (return NFBot) (evalType . snd) entry
-\end{lstlisting}
+The basic \textsc{Cast-Is-Value} rule returns $V : A^\circ \Rightarrow B^\circ$ as it is if it already forms a value. This occurs for $A^\circ = G, B^\circ = \star$ (\texttt{VDynCast})\footnote{Reminder: Comparison over HNF types \texttt{NFType} and ground types \texttt{GType} is possible using the \texttt{equalsType} function from listing~\ref{lst:gtype}.} or for function casts, i.e. $A^\circ=(\rho, \Pi(x:A)A'), B^\circ=(\rho, \Pi(x:B)B')$ (\texttt{VFuncCast}). If this rule does not apply we check the remaining rules via distinct function \texttt{reduceCast'} as \emph{alternative} (indicated by the \texttt{<|>} operator). The code is given in listing~\ref{lst:cast-is-value}.
 
-Cast reduction $V : A^\circ \Rightarrow B^\circ \Downarrow V'$ is implemented in the \texttt{reduceCast} function. Its type signature requires a value and two types in HNF, too. However, upon failure it will not return \blame directly but encapsulates its result into type \texttt{Maybe}. The calling function needs to call \blame upon an empty result.
-
-The basic \textsc{Cast-Is-Value} rule returns $V : A^\circ \Rightarrow B^\circ$ as it is if it already forms a value. This occurs for $A^\circ = G, B^\circ = \star$ (\texttt{VDynCast})\footnote{Reminder: Comparison over HNF types \texttt{NFType} and ground types \texttt{GType} is possible using the \texttt{equalsType} function from listing~\ref{lst:gtype}.} or for function casts, i.e. $A^\circ=(\rho, \Pi(x:A)A'), B^\circ=(\rho, \Pi(x:B)B')$ (\texttt{VFuncCast}).
-
-\begin{lstlisting}[caption=Interpreter.hs]
+\begin{lstlisting}[float,
+  caption=Rule \textsc{Cast-Is-Value} (\texttt{Interpreter.hs}),
+  label=lst:cast-is-value]
 reduceCast :: Value -> NFType -> NFType -> Maybe Value
 reduceCast v t1 t2 = castIsValue v t1 t2
                  <|> reduceCast' v t1' t2'
@@ -234,25 +244,24 @@ reduceCast v t1 t2 = castIsValue v t1 t2
         t2' = packGType t2
 
 castIsValue :: Value -> NFType -> NFType -> Maybe Value
-castIsValue v t NFDyn = do
+castIsValue v t NFDyn = do  -- dynamic wrapper
   gt <- matchType t
   if t `equalsType` gt
     then Just $ VDynCast v gt
     else Nothing
-castIsValue v (NFFunc ft1) (NFFunc ft2) =
+-- function cast
+castIsValue v (NFFunc ft1) (NFFunc ft2) =  -- function cast
   Just $ VFuncCast v ft1 ft2
 castIsValue _ _ _ = Nothing
 \end{lstlisting}
 
-If this rule does not apply we check the remaining rules via \texttt{reduceCast'}.
-
-\begin{lstlisting}[caption=Interpreter.hs]
-packGType :: NFType -> NFType
-packGType = \case
-  NFUnit -> NFGType GUnit
-  NFLabel ls -> NFGType $ GLabel ls
-  NFFunc (FuncType _ _ TDyn TDyn) -> NFGType GFunc
-  NFPair (FuncType _ _ TDyn TDyn) -> NFGType GPair
-  nfgt@(NFGType _) -> nfgt  -- avoid recursion
-  t -> t
+\begin{lstlisting}[float,
+  caption={Match type function $\rhd$ (\texttt{Interpreter.hs})},
+  label=lst:match-type]
+matchType :: NFType -> Maybe GType
+matchType = \case
+  NFFunc FuncType {} -> Just GFunc
+  NFPair FuncType {} -> Just GPair
+  NFGType gt -> Just gt
+  _ -> Nothing
 \end{lstlisting}
