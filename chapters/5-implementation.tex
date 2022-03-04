@@ -326,7 +326,9 @@ reduceCast' v (NFGType gt1) (NFGType gt2) =
   if gt1 `isSubtypeOf` gt2 then Just v else Nothing
 \end{lstlisting}
 
-The last two are about type reductions in context of pairs and functions. First, we implemnt \textsc{Cast-Pair}. For this purpose we make adjustments to the \texttt{eval} function in listing~\ref{lst:cast-reduce} which returns monad \texttt{InterpretM}. This is necessary since we need to consider the expression's environment $\rho$. The type annotation of function \texttt{reduceCast} does not accept arguments capable of representing the environment. After evaluating to $V : A^\circ \Rightarrow B^\circ$ we catch pair values by pattern matching and pass them to function \texttt{reducePairCast} as seen in listing~\ref{lst:pair-cast}.
+The last two are about type reductions in context of pairs and functions. First, we implemnt \textsc{Cast-Pair}. For this purpose we make adjustments to the \texttt{eval} function in listing~\ref{lst:cast-reduce} which returns monad \texttt{InterpretM}. This is necessary since we need to consider the expression's environment $\rho$. The type annotation of function \texttt{reduceCast} does not accept arguments capable of representing the environment. After evaluating to $V : A^\circ \Rightarrow B^\circ$ we catch pair values by pattern matching and pass the cast term to function \texttt{reducePairCast} as seen in listing~\ref{lst:pair-cast}. Again, we need a helper function to manage overlapping types. With \texttt{toNFPair} we interrept ground types, using type constructor \texttt{NFPair} instead of \texttt{NFGType}. This is necessary since \texttt{reducePairCast} only matches the former. Alternatively, one might match against all combinations of both type constructors as in function \texttt{castIsValue} from listing~\ref{lst:cast-is-value}. The actual cast reduction consists of simply reducing both of its components. When reducing the second component, we extend the respective environments with the first components' values (\texttt{xEnv}).
+
+
 
 \begin{lstlisting}[float,
   caption=Rule \textsc{Cast-Pair} (\texttt{Interpreter.hs}),
@@ -336,21 +338,31 @@ eval cast@(Cast e t1 t2) = do
   v    <- interpret' e
   nft1 <- evalType t1
   nft2 <- evalType t2
-  case (v, nft1, nft2) of
+  case v of
     -- catch pair values
-    (pair@VPair {}, from@NFPair {}, to@NFPair {}) -> do
-      v' <- lift $ reducePairCast pair from to
+    VPair {} -> do
+      v' <- lift $ reducePairCast
+        v (toNFPair nft1) (toNFPair nft2)
       maybe (blame cast) return v'
     -- as before
     _ -> maybe (blame cast) return (reduceCast v nft1 nft2)
 
+toNFPair (NFGType (GPair s)) =
+  NFPair (FuncType [] [] s TDyn TDyn)
+toNFPair t = t
+
 reducePairCast
   (VPair v w)
-  (NFPair (FuncType env  _ t1  t2))
-  (NFPair (FuncType env' _ t1' t2')) = do
-    v' <- reduceComponent v (env, t1) (env', t1')
-    w' <- reduceComponent w (env, t2) (env', t2')
-    return $ liftM2 VPair v' w'
+  (NFPair (FuncType env  s  t1  t2))
+  (NFPair (FuncType env' s' t1' t2')) = do
+    mv' <- reduceComponent v (env, t1) (env', t1')
+    case mv' of
+      Nothing -> return Nothing -- first reduce failed
+      Just v' -> do
+        let xEnv  = (s,  v)  : env
+            xEnv' = (s', v') : env'
+        mw' <- reduceComponent w (xEnv, t2) (xEnv', t2')
+        return $ liftM2 VPair mv' mw'
 
 reduceComponent v (env, t) (env', t') = do
   nft  <- R.runReaderT (evalType t)  env,
