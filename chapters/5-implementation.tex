@@ -137,7 +137,7 @@ type LabelType = Set Label
 data FuncType = FuncType PEnv String Type Type
 \end{lstlisting}
 
-The constructor \texttt{NFGType} is a special case. It takes an argument of type \texttt{GType}---the data type implementing \emph{ground types}---which we define in listing~\ref{lst:gtype}. This type dependency depicts that every ground type is also in head normal form---but not the other way around---while making comparison operations between \texttt{NFType} and \texttt{GType} possible. At the same time, defining ground types as a separate data type allows for more precise function signatures. Even so, we can not perfectly model the relationship since Haskell itself is not dependently typed. A function type $(\cdot, \Pi(x:\star)\star)$ can be written as simple \texttt{NFGType GFunc} or as \texttt{NFFunc (FuncType [] "x" TDyn TDyn)}. The latter is semantically correct but must not occur. We have to resort to helper function \texttt{equalsType} to resolve such cases.
+The constructor \texttt{NFGType} is a special case. It takes an argument of type \texttt{GType}---the data type implementing \emph{ground types}---which we define in listing~\ref{lst:gtype}. This type dependency depicts that every ground type is also in head normal form---but not the other way around---while making comparison operations between \texttt{NFType} and \texttt{GType} possible. At the same time, defining ground types as a separate data type allows for more precise function signatures. Even so, we can not perfectly model the relationship since Haskell itself is not dependently typed. A function type $(\cdot, \Pi(x:\star)\star)$ can be written as simple \texttt{NFGType GFunc} or as \texttt{NFFunc (FuncType [] "x" TDyn TDyn)}. The latter is semantically correct but must not occur it most contexts. We have to resort to helper function like \texttt{equalsType} and additional logic to resolve such cases.
 
 \begin{lstlisting}[float,
   caption=Ground type definition (\texttt{ProcessEnvironment.hs}),
@@ -145,12 +145,14 @@ The constructor \texttt{NFGType} is a special case. It takes an argument of type
 data GType
   = GUnit
   | GLabel LabelType
-  | GFunc
-  | GPair
+  | GFunc String
+  | GPair String
 
 equalsType :: NFType -> GType -> Bool
-equalsType (NFFunc (FuncType _ _ TDyn TDyn)) GFunc = True
-equalsType (NFPair (FuncType _ _ TDyn TDyn)) GPair = True
+equalsType (NFFunc (FuncType _ _ s TDyn TDyn)) (GFunc s') =
+  s == s'
+equalsType (NFPair (FuncType _ _ s TDyn TDyn)) (GPair s') =
+  s == s'
 equalsType (NFGType gt1) gt2 = gt1 == gt2
 equalsType _ _ = False
 \end{lstlisting}
@@ -166,9 +168,9 @@ class Subtypeable t where
 instance Subtypeable GType where
   isSubtypeOf GUnit GUnit = True
   isSubtypeOf (GLabel ls1) (GLabel ls2) =
-    ls1 `isSubsetOf` ls2
-  isSubtypeOf GFunc GFunc = True
-  isSubtypeOf GPair GPair = True
+    ls1 `Set.isSubsetOf` ls2
+  isSubtypeOf (GFunc _) (GFunc _) = True
+  isSubtypeOf (GPair _) (GPair _) = True
   isSubtypeOf _ _ = False
 
 instance Subtypeable NFType where
@@ -232,36 +234,126 @@ eval cast@(Cast e t1 t2) = do
 
 Cast reduction $V : A^\circ \Rightarrow B^\circ \Downarrow V'$ is implemented in the \texttt{reduceCast} function. Its type signature matches the term as it requires a value and two types in HNF. However, upon failure it will not return \blame directly but encapsulates its result into a \texttt{Maybe} type. Then, the calling function needs to call \blame upon an empty result (e.g. see listing~\ref{lst:cast-reduce}).
 
-The basic \textsc{Cast-Is-Value} rule returns $V : A^\circ \Rightarrow B^\circ$ as it is if it already forms a value. This occurs for $A^\circ = G, B^\circ = \star$ (\texttt{VDynCast})\footnote{Reminder: Comparison over HNF types \texttt{NFType} and ground types \texttt{GType} is possible using the \texttt{equalsType} function from listing~\ref{lst:gtype}.} or for function casts, i.e. $A^\circ=(\rho, \Pi(x:A)A'), B^\circ=(\rho, \Pi(x:B)B')$ (\texttt{VFuncCast}). If this rule does not apply we check the remaining rules via distinct function \texttt{reduceCast'} as \emph{alternative} (indicated by the \texttt{<|>} operator). The code is given in listing~\ref{lst:cast-is-value}.
+The basic \textsc{Cast-Is-Value} rule returns $V : A^\circ \Rightarrow B^\circ$ as it is if it already forms a value. This occurs for $A^\circ = G, B^\circ = \star$ (\texttt{VDynCast}) or for function casts, i.e. $A^\circ=(\rho, \Pi(x:A)A'), B^\circ=(\rho, \Pi(x:B)B')$ (\texttt{VFuncCast}). When implementing the latter we have to consider the ground type \texttt{GFunc} that is also a valid function type but is on a different level in the type hierarchy. Therefore, more code is necessary to handle conversion. If the \textsc{Cast-Is-Value} rule does not apply we check the remaining rules via distinct function \texttt{reduceCast'} as \emph{alternative} (indicated by the \texttt{<|>} operator). The code is given in listing~\ref{lst:cast-is-value}.
 
 \begin{lstlisting}[float,
   caption=Rule \textsc{Cast-Is-Value} (\texttt{Interpreter.hs}),
   label=lst:cast-is-value]
 reduceCast :: Value -> NFType -> NFType -> Maybe Value
 reduceCast v t1 t2 = castIsValue v t1 t2
-                 <|> reduceCast' v t1' t2'
-  where t1' = packGType t1
-        t2' = packGType t2
+                 <|> reduceCast' v t1 t2
 
 castIsValue :: Value -> NFType -> NFType -> Maybe Value
-castIsValue v t NFDyn = do  -- dynamic wrapper
-  gt <- matchType t
-  if t `equalsType` gt
-    then Just $ VDynCast v gt
-    else Nothing
--- function cast
-castIsValue v (NFFunc ft1) (NFFunc ft2) =  -- function cast
+castIsValue v (NFGType gt) NFDyn = Just $ VDynCast v gt
+castIsValue v (NFFunc ft1) (NFFunc ft2) =
   Just $ VFuncCast v ft1 ft2
+castIsValue v (NFFunc ft1) (NFGType (GFunc y)) =
+  Just $ VFuncCast v
+    ft1 (FuncType [] y TDyn TDyn)
+castIsValue v (NFGType (GFunc x)) (NFFunc ft2) =
+  Just $ VFuncCast v
+    (FuncType [] x TDyn TDyn) ft2
+castIsValue v (NFGType (GFunc x)) (NFGType (GFunc y)) =
+  Just $ VFuncCast v
+    (FuncType [] x TDyn TDyn) (FuncType [] y TDyn TDyn)
 castIsValue _ _ _ = Nothing
 \end{lstlisting}
 
+For some rules we match HNF types to ground types as defined in figure~\ref{fig:ccldlc-type-matching}. The actual code of listing~\ref{lst:type-matching} is more concise that the definition because of the way we encapsulated \texttt{GType} and since we do not consider singleton types.
+
 \begin{lstlisting}[float,
-  caption={Match type function $\rhd$ (\texttt{Interpreter.hs})},
-  label=lst:match-type]
+  caption=Type matching $A^\circ \rhd G$ (\texttt{Interpreter.hs}),
+  label=lst:type-matching]
 matchType :: NFType -> Maybe GType
 matchType = \case
-  NFFunc FuncType {} -> Just GFunc
-  NFPair FuncType {} -> Just GPair
+  NFFunc (FuncType _ _ x _ _) -> Just $ GFunc x
+  NFPair (FuncType _ _ x _ _) -> Just $ GPair x
   NFGType gt -> Just gt
   _ -> Nothing
+\end{lstlisting}
+
+The remaining rules necessary for a full implementation of CCLDLC , except these for function and pair handling, are handled by the \texttt{reduceCast'} function we describe in the next paragraphs.
+
+Rules \textsc{Cast-Dyn-Dyn} and \textsc{Factor-Left} are similar such that they presume a cast \emph{to} dynamic type $\star$. Hence, we implement them together as in listing~\ref{lst:cast-dyn-dyn-factor-left}. Currently, the only subtypes of $\star$ are $\star$ itself and bottom type $\bot$ which is expressed using typeclass \texttt{Subtypeable} (listing~\ref{lst:subtypeable}). If the given type is no subtype of $\star$ we apply \textsc{Factor-Left} as is. After type matching $A^\circ \rhd G$ we do not implement the check that $A^\circ \neq G$. Given the function's arguments this implies a cast $V : G \Rightarrow \star$ that would have been handled by an earlier call to \texttt{castIsValue}.
+
+\begin{lstlisting}[float,
+  label=lst:cast-dyn-dyn-factor-left,
+  caption=Rules \textsc{Cast-Dyn-Dyn} and \textsc{Factor-Left} (\texttt{Interpreter.hs})]
+reduceCast' v t NFDyn =
+  if t `isSubtypeOf` NFDyn
+  then Just v --Cast-Dyn-Dyn
+  else do
+    gt <- matchType t
+    v' <- reduceCast v t (NFGType gt)
+    Just $ VDynCast v' gt
+\end{lstlisting}
+
+There is no type that is a subtype of the bottom type $\bot$. Hence, a cast to $\bot$ must always results in blame which is expressed in rule \textsc{Cast-Bot}.
+
+\begin{lstlisting}[caption=Rule \textsc{Cast-Bot} (\texttt{Interpreter.hs})]
+reduceCast' _ _ NFBot = Nothing
+\end{lstlisting}
+
+It is straightforward to implement rules \textsc{Cast-Collapse} and \textsc{Cast-Collide}. Even though dynamic type $\star$ does not support transitivity w.r.t. subtyping, these rules enable transitivity for ground types only. The code is given in listing~\ref{lst:cast-collapse}.
+
+\begin{lstlisting}[float,
+  caption=Rules \textsc{Cast-Collapse} and \textsc{Cast-Collide} (\texttt{Interpreter.hs}),
+  label=lst:cast-collapse]
+reduceCast' (VDynCast v gt1) NFDyn (NFGType gt2) =
+  if gt1 `isSubtypeOf` gt2 then Just v else Nothing
+\end{lstlisting}
+
+Rule \textsc{Factor-Right} describes a cast from $\star$ to another type (listing~\ref{lst:factor-right}). Its utilization of \emph{type matching} $\rhd$ makes it similar to \textsc{Factor-Left}. A failure results in \blame since rules with similar structure, namely \textsc{Cast-Collapse} and \textsc{Cast-Collide}, were handled before by pattern matching over more specific arguments.
+
+\begin{lstlisting}[float,
+  caption=Rule \textsc{Factor-Right} (\texttt{Interpreter.hs}),
+  label=lst:factor-right]
+reduceCast' v NFDyn t = do
+  gt <- matchType t
+  let nfgt = NFGType gt
+  if not (t `equalsType` gt) then do
+    v'  <- reduceCast v NFDyn nfgt
+    v'' <- reduceCast v' nfgt t
+    Just v''
+  else
+    Nothing
+\end{lstlisting}
+
+Finally, we give a simple implementation for rule \textsc{Cast-Sub} which simply checks subtyping between given ground types. On failure, this simply returns \blame without any additional checks. Also, we completely omit rule \textsc{Cast-Fail}. This is because it is the last rule in context of \texttt{reduceCast'}. There are no cases left to examine so any cast not yet covered must fail.
+
+\begin{lstlisting}[caption=Rule \textsc{Cast-Sub} (\texttt{Interpreter.hs})]
+reduceCast' v (NFGType gt1) (NFGType gt2) =
+  if gt1 `isSubtypeOf` gt2 then Just v else Nothing
+\end{lstlisting}
+
+The last two are about type reductions in context of pairs and functions. First, we implemnt \textsc{Cast-Pair}. For this purpose we make adjustments to the \texttt{eval} function in listing~\ref{lst:cast-reduce} which returns monad \texttt{InterpretM}. This is necessary since we need to consider the expression's environment $\rho$. The type annotation of function \texttt{reduceCast} does not accept arguments capable of representing the environment. After evaluating to $V : A^\circ \Rightarrow B^\circ$ we catch pair values by pattern matching and pass them to function \texttt{reducePairCast} as seen in listing~\ref{lst:pair-cast}.
+
+\begin{lstlisting}[float,
+  caption=Rule \textsc{Cast-Pair} (\texttt{Interpreter.hs}),
+  label=lst:pair-cast]
+eval :: Exp -> InterpretM Value
+eval cast@(Cast e t1 t2) = do
+  v    <- interpret' e
+  nft1 <- evalType t1
+  nft2 <- evalType t2
+  case (v, nft1, nft2) of
+    -- catch pair values
+    (pair@VPair {}, from@NFPair {}, to@NFPair {}) -> do
+      v' <- lift $ reducePairCast pair from to
+      maybe (blame cast) return v'
+    -- as before
+    _ -> maybe (blame cast) return (reduceCast v nft1 nft2)
+
+reducePairCast
+  (VPair v w)
+  (NFPair (FuncType env  _ t1  t2))
+  (NFPair (FuncType env' _ t1' t2')) = do
+    v' <- reduceComponent v (env, t1) (env', t1')
+    w' <- reduceComponent w (env, t2) (env', t2')
+    return $ liftM2 VPair v' w'
+
+reduceComponent v (env, t) (env', t') = do
+  nft  <- R.runReaderT (evalType t)  env,
+  nft' <- R.runReaderT (evalType t') env'
+  return $ reduceCast v nft nft'
 \end{lstlisting}
