@@ -328,12 +328,9 @@ reduceCast' v (NFGType gt1) (NFGType gt2) =
 
 The last two are about type reductions in context of pairs and functions. First, we implemnt \textsc{Cast-Pair}. For this purpose we make adjustments to the \texttt{eval} function in listing~\ref{lst:cast-reduce} which returns monad \texttt{InterpretM}. This is necessary since we need to consider the expression's environment $\rho$. The type annotation of function \texttt{reduceCast} does not accept arguments capable of representing the environment. After evaluating to $V : A^\circ \Rightarrow B^\circ$ we catch pair values by pattern matching and pass the cast term to function \texttt{reducePairCast} as seen in listing~\ref{lst:pair-cast}. Again, we need a helper function to manage overlapping types. With \texttt{toNFPair} we interrept ground types, using type constructor \texttt{NFPair} instead of \texttt{NFGType}. This is necessary since \texttt{reducePairCast} only matches the former. Alternatively, one might match against all combinations of both type constructors as in function \texttt{castIsValue} from listing~\ref{lst:cast-is-value}. The actual cast reduction consists of simply reducing both of its components. When reducing the second component, we extend the respective environments with the first components' values (\texttt{xEnv}).
 
-
-
 \begin{lstlisting}[float,
   caption=Rule \textsc{Cast-Pair} (\texttt{Interpreter.hs}),
   label=lst:pair-cast]
-eval :: Exp -> InterpretM Value
 eval cast@(Cast e t1 t2) = do
   v    <- interpret' e
   nft1 <- evalType t1
@@ -369,3 +366,91 @@ reduceComponent v (env, t) (env', t') = do
   nft' <- R.runReaderT (evalType t') env'
   return $ reduceCast v nft nft'
 \end{lstlisting}
+
+Finally, we implement \textsc{Cast-Function} by---again---extending function \texttt{eval} for application $M~N$. Formerly, this separately did evaluate expressions $M \downarrow V$ and $N \downarrow W$ to values. Given $V$ is a function $(\rho, \lambda x. M')$ it extends environment $\rho$ with $x=W$, then evaluating $M'$ in its context. Otherwise, it would fail. For our extension we introduce function \texttt{interpretApp} taking values $V$ as $W$ as arguments in listing~\ref{lst:cast-function}. This allows for more involved functionality by matching over its arguments' types. Apart from that, the code mostly reflects the rule, using \texttt{runReaderT} from the \emph{Reader} monad to respectively pass the correct environment.
+
+\begin{lstlisting}[float,
+  caption=Rule \textsc{Cast-Function} (\texttt{Interpreter.hs}),
+  label=lst:cast-function]
+interpretApp :: Value -> Value -> InterpretM Value
+interpretApp (VFuncCast v
+  (FuncType env  s  t1  t2)
+  (FuncType env' s' t1' t2')) w' = do
+    env0 <- ask
+    let interpretAppCast = do
+      nft1  <- R.runReaderT (evalType t1)  env
+      nft1' <- R.runReaderT (evalType t1') env'
+      w  <- maybe blame return (reduceCast w' nft1' nft1)
+      nft2' <- R.runReaderT (evalType t2') ((s', w') : env)
+      nft2  <- R.runReaderT (evalType t2)  ((s,  w)  : env)
+      u  <-    R.runReaderT (interpretApp v w) env0
+      u' <- maybe blame return (reduceCast u nft2 nft2')
+      return u'
+    lift interpretAppCast
+\end{lstlisting}
+
+\newpage
+
+\section{Examples}
+
+To give an intuition about how rules are applied regarding cast expressions we give a non-trivial example. We evaluate a nested lambda expression taking two arguments $x,y$. While $x : \Bool$, the type of $y$ depends on the value of $x$. If $x=\ell_F$ then $y$ is a function mapping one boolean argument to a boolean result, then applying $x$. Else, for $x=\ell_T$, $y$ is a function expecting \emph{two} arguments, applying $x$ two successive times. Please note that the actual code in listing~\ref{lst:ccldgv-example1} is nearly identical to CCLDLC equation~\ref{eqn:ccldlc-example1}.
+
+\begin{equation}\label{eqn:ccldlc-example1}
+\begin{split}
+f = & \lambda (x: \Bool)
+. \lambda (y: \star )
+. \case x \{ \\
+& \qquad \ell_F: (y : \star \Rightarrow (a:\Bool) \rightarrow \Bool)~x, \\
+& \qquad \ell_T: (x : \star \Rightarrow (a:\Bool) \rightarrow (b:\Bool) \rightarrow \Bool)~x~x \} \\
+: & \Pi(x : \Bool) . \Pi (y: \star ) . \Bool
+\end{split}
+\end{equation}
+
+\begin{lstlisting}[language=ldgv,
+  label=lst:ccldgv-example1,
+  caption=CCLDGV example ``dependent function cast'']
+val f = fn(x: Bool) fn(y: *) case x {
+          'F: (y: * => (a:Bool) -> Bool) x,
+          'T: (y: * => (a:Bool) -> (b:Bool) -> Bool) x x}
+\end{lstlisting}
+
+By applying label $\ell_F$ (representing boolean \emph{False}) and boolean function $\notf = \lambda (x:\Bool) \case x \{ \ell_T: \ell_F, \ell_F: \ell_T\}$ we evaluate the whole expression to value $\ell_T$. This is presented in a step-by-step manner, starting with an application and an explicit dynamic cast for function \notf.
+
+\begin{align}
+& f~\ell_F~~(not : (a:\Bool) \rightarrow \Bool \Rightarrow \star) \\
+( & f~\ell_F)~(not : (a:\Bool) \rightarrow \Bool \Rightarrow \star)
+\end{align}
+
+First, we evaluate the left part of the application, which is an application itself: $f~\ell_F$. This part does not involve the \emph{Cast Calculus}, simply binding $x=\ell_F$ in the function's environment $\rho$, returning $f' := \lambda (y:\star) \case x \{ \dots \}$. Next, we evaluate the right side's cast expression using rule \textsc{Factor-Left} and \textsc{Cast-Is-Value}. This results in a value $v' := (V : G \Rightarrow \star)$ where $V$ is a function cast and $G$ is a \underline{function ground type}.
+
+\begin{align}
+& \Pi(a:\Bool) \Bool \rhd \underline{\Pi(a:\star) \star} \\
+& \notf : \Pi(a:\Bool) \Bool \Rightarrow \underline{\Pi(a:\star) \star} \\
+\Downarrow ( & \notf : \Pi(a:\Bool) \Bool \Rightarrow \Pi(a:\star) \star ) \\ \hline
+& \notf : \Pi(a:\Bool) \Bool \Rightarrow \star \\
+\Downarrow ( & \notf : \Pi(a:\Bool) \Bool \Rightarrow \Pi(a:\star) \star) : \underline{\Pi(a:\star) \star} \Rightarrow \star
+\end{align}
+
+Now, we evaluate new-formed expression $f'~v'$, again an application. Evaluating the body of $f'$ eliminates the \case term by matching to label $\ell_F$. Substituting $f'[v'/y]$ results in cast expression $(v' : \star \Rightarrow \Pi(a:\Bool) \Bool)$. Since the right part of the cast is not a ground type we need to apply \textsc{Factor-Right} and subsequently \textsc{Cast-Collapse} and \textsc{Cast-Is-Value}. Invoking this cast reduction results in a function cast value $v'' := (V : \Pi(a: \star) \star \Rightarrow \Pi(a:\Bool) \Bool)$ with $V$ being a function cast, too (the same as above).
+
+\begin{align}
+\Pi(a:\Bool) \Bool & \rhd \underline{\Pi(a:\star)\star} \\
+v' : \star & \Rightarrow \underline{\Pi(a:\star)\star} \\
+\equiv ( V : \underline{\Pi(a:\star) \star} \Rightarrow \star) : \star & \Rightarrow \underline{\Pi(a:\star) \star}
+\Downarrow V \\ \hline
+V : \underline{\Pi(a:\star) \star} & \Rightarrow \Pi(a:\Bool) \Bool \\
+\Downarrow (V : \Pi(a:\star) \star & \Rightarrow \Pi(a:\Bool) \Bool) \\ \hline
+v' : \star & \Rightarrow \Pi(a:\Bool) \Bool \\
+\Downarrow (V : \Pi(a:\star) \star & \Rightarrow \Pi(a:\Bool) \Bool)
+\end{align}
+
+Finally, we evaluate the full expression in the example function's false branch. We substitue the cast of variable $y$ with $v''$ and variable $x$ with $\ell_F$. What remains is application $v''~\ell_F$. Since $v''$ is a function cast value we use rule \textsc{Cast-Function}.
+
+\begin{align}
+\ell_F : \Bool \Rightarrow \star \Downarrow (\ell_F : \Bool \Rightarrow \star) \\
+(V~(\ell_F : \Bool \Rightarrow \star)) : \star \Rightarrow \Bool \\ \hline
+( \notf : \Pi(a:\Bool) \Bool \Rightarrow \Pi(a:\star) \star)~(\ell_F : \Bool \Rightarrow \star) \\
+(\ell_F : \Bool \Rightarrow \star) : \star \Rightarrow \Bool \Downarrow \ell_F \\
+(\notf~\ell_F : \Bool \Rightarrow \star) \downarrow (\ell_T : \Bool \Rightarrow \star) \\ \hline
+(\ell_T : \Bool \Rightarrow \star) : \star \Rightarrow \Bool \Downarrow \ell_T
+\end{align}
