@@ -19,10 +19,10 @@ Another two language concepts are more interesting: First and foremost, the supp
       \ell \enspace|\enspace
       x \in \mathbb{R} \\
     & |\enspace M \circ N & \circ \in \{+,-,\times,\div\} \\
-    & |\enspace \case X \{\overline{\ell : N_\ell}\} & \text{label set elimination} \\
+    & |\enspace \case M \{\overline{\ell : N_\ell}\} & \text{label expression matching} \\
     & |\enspace \rec V~M~x.y.N & \mathbb{N}\text{ recursor} \\
     & |\enspace \lambda (x : A).M & \text{abstraction} \\
-    & |\enspace M N & \text{application}\\
+    & |\enspace M~N & \text{application}\\
     & |\enspace \letb x = M \inb N & \text{bind in $N$}\\
     & |\enspace \letb \langle x, y \rangle = M \inb N & \text{bind pair in $N$} \\
     & |\enspace \langle x = M, N \rangle & \text{pair construction}\\
@@ -41,10 +41,9 @@ Another two language concepts are more interesting: First and foremost, the supp
       \Nat \enspace|\enspace
       \Double \\
     & |\enspace \{ \ell_1, \dots, \ell_n \} & \text{finite label set} \\
-    & |\enspace [x:A,B] \enspace|\enspace [A,B] & \text{pair type} \\
-    & |\enspace \{\{ M = N : A \}\} & \text{type equality} \\
-    & |\enspace (x:A) \rightarrow B & \text{function type} \\
-    & |\enspace \case M \{\overline{\ell : A_\ell}\} \\
+    & |\enspace \Sigma(x:A)B & \text{pair type} \\
+    & |\enspace \Pi(x:A)B & \text{function type} \\
+    & |\enspace \case M \{\overline{\ell : A_\ell}\} & \text{label type matching} \\
     & |\enspace \rec V~A~t.B & \text{recursor type}
 \end{align*}
 \caption{Types in LDLC}
@@ -72,8 +71,6 @@ The minimal type is the singleton type of its corresponding label. For label $\e
 
 Predominantly, labels appear in context of \case terms. These may occur as expressions or as types and act as eliminator for labels. They provide a mapping from each label of the corresponding label set to an expression or a type. Hence the name of the calculus, \emph{Label Dependent} Lambda Calculus. The type of an expression may depend on a label value.
 
-If one label type $L_1$ is a subset of another label type $L_2$, then $L_1$ is a subtype of $L_2$, i.e. $L_1 \subseteq L_2 \Leftrightarrow L_1 \leq L_2$. Thus, there is no $L$ that is a subtype of $\bot$. Subtyping in LDLC is closed under transitivity.
-
 \subsection{Recursor over Natural Numbers}
 
 In addition to label dependency, there is another construct dependency on natural numbers: \rec V~M~x.y.N
@@ -96,26 +93,97 @@ If $V=Z$ the whole expression is reduced to $M$, discarding its latter term. Oth
 
 It is similar for type conversion of $\rec V~A~t.B$. For $V=Z$, the resulting type is simply $A$. As for $V=S(V')$, the resulting type is given by $B$ after substituting type identifier $t$ in $B$ with $\rec V'~A~t.B$.
 
+\subsection{Subtyping}
+
+We list an excerpt of relevant subtyping rules of LDLC in figure~\ref{fig:ldgv-subtyping}. For CCLDLC they gain additional relevance since they are necessary not only for type checking but now for type casts during runtime, too.
+
+Since a label type is a set of labels we can use set comparisons for subtyping. If one label type $L$ is a subset of another label type $L'$, then $L$ is a subtype of $L'$. Thus, there is no $L$ that is a subtype of $\bot$. Subtyping in LDLC is closed under transitivity.
+
+\begin{figure}
+\begin{mathpar}
+\inferrule[A-Sub-Unit]
+  {\Gamma \Vdash \Unit \leq \Unit}{}
+\and
+\inferrule[A-Sub-Label]
+  {L \subseteq L'}{\Gamma \Vdash L \leq L'}
+\\
+\inferrule[A-Sub-Pi]
+  {\Gamma \Vdash A' \leq A \and \Gamma,x:A' \Vdash B \leq B'}{\Gamma \Vdash \Pi(x:A)B \leq \Pi(x:A')B'}
+\\
+\inferrule[A-Sub-Sigma]
+  {\Gamma \Vdash A \leq A' \and \Gamma, x:A \Vdash B \leq B'}
+  {\Gamma \Vdash \Sigma(x:A)B \leq \Sigma(x:A')B'}
+\\
+\Gamma ::= \cdot \enspace | \enspace \Gamma, x:A
+\end{mathpar}
+\caption{Subtyping rules in LDGV (excerpt) w.r.t. type environment $\Gamma$}
+\label{fig:ldgv-subtyping}
+\end{figure}
+
+
 \section{LDGV Interpreter}
 
-LDGV stands for ``Label Dependency'' and ``Gay \& Vasconcelos'', the authors of multiple papers about Session Types, e.g. \cite{gayvasconcelos2010}. In this work's context, it is the name of the interpreter and compiler for LDLC and its extension CCLDLC, written in the Haskell programming language.
+LDGV stands for ``Label Dependency'' and ``Gay \& Vasconcelos'', the authors of multiple papers about Session Types, e.g. \cite{gayvasconcelos2010}. In this work's context, it is the name of an interpreter and compiler for LDLC and its extension CCLDLC. It is written in the Haskell programming language.
 
-Its syntax largely equals the calculus from section~\ref{sec:ldlc}. There are also statements for declarations and assertions, as seen in figure~\ref{lst:ldgv-statements}.
-A label is written as combination of alphanumeric characters, prefixed by an apostroph. Translating equation~\ref{eqn:ldlc} into a valid LDGV program results in the sample program in figure~\ref{lst:ldgv-program}.
+Its syntax is similar the calculus from the previous section. We give an excerpt in listing~\ref{lst:ldgv-expressions}. In general, keywords and structure are identical save for labels. To uniquely identify a label it needs to be a combination of alphanumeric characters, prefixed by an apostroph.
 
-\begin{lstlisting}[language=ldgv,caption=Statements in LDGV,label=lst:ldgv-statements]
+\begin{lstlisting}[float,language=ldgv,
+  caption={Expressions in LDGV (excerpt) with expressions \texttt{M,N,P}, variable \texttt{x} and type \texttt{A}},
+  label=lst:ldgv-expressions]
+()          -- unit
+M + N       -- and other arithmetic
+10          -- numbers
+x           -- variables
+'foo        -- labels
+case M {'foo: M, 'bar: P}
+fn(x: A) M  -- lambda function
+<x = M, N>  -- pair
+\end{lstlisting}
+
+The syntax for types is given in listing~\ref{lst:ldgv-types}. Writing out function and pair types differs from the calculus' notation. Function types of multiple arguments are built by recursion, e.g. \texttt{(x:A) -> (y:B) -> C}.
+
+\begin{lstlisting}[float,language=ldgv,
+  caption={Types in LDGV (excerpt) with expression \texttt{M}, variable \texttt{x}, type identifier \texttt{T} and types \texttt{A,B}},
+  label=lst:ldgv-types]
+Unit
+Int
+T             -- type identifier
+{'foo, 'bar}  -- label type
+case M {'foo: A, 'bar: B}
+(x: A) -> B   -- function type
+[x: A, B]     -- pair type
+\end{lstlisting}
+
+For an actual program there are statements, especially declarations. They create the global environment, binding expressions to variables and types to type identifiers. When running the interpreter on a given program, it outputs the evaluation result of the expression bound to variable \texttt{main}. Furthermore, there are type assertions. The full list of statements in given in listing~\ref{lst:ldgv-statements}.
+
+\begin{lstlisting}[float,language=ldgv,
+  caption={Statements in LDGV, with expressions \texttt{M,N} and types \texttt{A,B}},
+  label=lst:ldgv-statements]
 val x = M   -- variable declaration
 val x : A   -- variable signature declaration
-type t : A  -- type declaration
+type T : A  -- type declaration
 A <: B      -- subtype assertion
 A =: B      -- type equivalence assertion
 = x M N     -- WHAT DOES THIS DO?
 \end{lstlisting}
 
-\begin{lstlisting}[language=ldgv,numbers=left,caption=Sample LDGV program,label=lst:ldgv-program]
+Translating equation~\ref{eqn:ldlc} into a valid LDGV program results in the sample program in figure~\ref{lst:ldgv-program}. The variable's type signatures \texttt{val x:A} are optional.
+Variable \texttt{main} gives an example application, fully evaluating to value \texttt{'F} (representing boolean \emph{False}).
+
+\begin{lstlisting}[float,language=ldgv,numbers=left,
+  caption=Sample LDGV program,
+  label=lst:ldgv-program]
 type Bool : {'T, 'F}
-val not(b: Bool) = (case b {'T: 'F, 'F: 'T})
-fn(x: Bool)
-        fn(y: case x {'T: Int, 'F: Bool})
-              case x {'T: 17+y, 'F: not y}
+
+val not : (a: Bool) -> Bool
+val not   (a: Bool) = (case a {'T: 'F, 'F: 'T})
+
+val f : (x: Bool)
+         -> (y: case x {'T: Int, 'F: Bool})
+             -> case x {'T: Int, 'F: Bool}
+val f = fn(x: Bool)
+          fn(y: case x {'T: Int, 'F: Bool})
+            case x {'T: 17+y, 'F: not y}
+
+val main = f 'F 'T  -- results in value 'F
 \end{lstlisting}

@@ -389,8 +389,6 @@ interpretApp (VFuncCast v
     lift interpretAppCast
 \end{lstlisting}
 
-\newpage
-
 \section{Examples}
 
 To give an intuition about the reduction of cast expressions regarding the rules and implementation we show a non-trivial example. We evaluate a nested lambda expression taking two arguments $x,y$. While $x$ hat type \Bool, the type of $y$ is dynamic. In the function's body $y$ depends on the value of $x$, hence a cast. If $x=\ell_F$ then $y$ is a function mapping one boolean argument to a boolean result, then applying $x$. Else, for $x=\ell_T$, $y$ is a function expecting \emph{two} arguments, applying $x$ two successive times. Please note that the actual code in listing~\ref{lst:ccldgv-example1} is nearly identical to CCLDLC form in equation~\ref{eqn:ccldlc-example1}.
