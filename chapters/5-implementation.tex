@@ -393,7 +393,7 @@ interpretApp (VFuncCast v
 
 \section{Examples}
 
-To give an intuition about how rules are applied regarding cast expressions we give a non-trivial example. We evaluate a nested lambda expression taking two arguments $x,y$. While $x : \Bool$, the type of $y$ depends on the value of $x$. If $x=\ell_F$ then $y$ is a function mapping one boolean argument to a boolean result, then applying $x$. Else, for $x=\ell_T$, $y$ is a function expecting \emph{two} arguments, applying $x$ two successive times. Please note that the actual code in listing~\ref{lst:ccldgv-example1} is nearly identical to CCLDLC equation~\ref{eqn:ccldlc-example1}.
+To give an intuition about the reduction of cast expressions regarding the rules and implementation we show a non-trivial example. We evaluate a nested lambda expression taking two arguments $x,y$. While $x$ hat type \Bool, the type of $y$ is dynamic. In the function's body $y$ depends on the value of $x$, hence a cast. If $x=\ell_F$ then $y$ is a function mapping one boolean argument to a boolean result, then applying $x$. Else, for $x=\ell_T$, $y$ is a function expecting \emph{two} arguments, applying $x$ two successive times. Please note that the actual code in listing~\ref{lst:ccldgv-example1} is nearly identical to CCLDLC form in equation~\ref{eqn:ccldlc-example1}.
 
 \begin{equation}\label{eqn:ccldlc-example1}
 \begin{split}
@@ -414,43 +414,49 @@ val f = fn(x: Bool) fn(y: *) case x {
           'T: (y: * => (a:Bool) -> (b:Bool) -> Bool) x x}
 \end{lstlisting}
 
-By applying label $\ell_F$ (representing boolean \emph{False}) and boolean function $\notf = \lambda (x:\Bool) \case x \{ \ell_T: \ell_F, \ell_F: \ell_T\}$ we evaluate the whole expression to value $\ell_T$. This is presented in a step-by-step manner, starting with an application and an explicit dynamic cast for function \notf.
+By applying label $\ell_F$ (representing boolean \emph{False}) and boolean function $\notf = \lambda (x:\Bool) \case x \{ \ell_T: \ell_F, \ell_F: \ell_T\}$ we evaluate the whole expression to value $\ell_T$. This is presented in a step-by-step manner, starting with an application and an explicit dynamic cast for function \notf. For brevity, we omit the environment $\rho$ inside equations.
 
 \begin{align}
-& f~\ell_F~~(not : (a:\Bool) \rightarrow \Bool \Rightarrow \star) \\
-( & f~\ell_F)~(not : (a:\Bool) \rightarrow \Bool \Rightarrow \star)
+& f~\ell_F~~(\notf : (a:\Bool) \rightarrow \Bool \Rightarrow \star) \\
+( & f~\ell_F)~(\notf : (a:\Bool) \rightarrow \Bool \Rightarrow \star)
 \end{align}
 
-First, we evaluate the left part of the application, which is an application itself: $f~\ell_F$. This part does not involve the \emph{Cast Calculus}, simply binding $x=\ell_F$ in the function's environment $\rho$, returning $f' := \lambda (y:\star) \case x \{ \dots \}$. Next, we evaluate the right side's cast expression using rule \textsc{Factor-Left} and \textsc{Cast-Is-Value}. This results in a value $v' := (V : G \Rightarrow \star)$ where $V$ is a function cast and $G$ is a \underline{function ground type}.
+First, we evaluate the left part of the application, which is an application itself: $f~\ell_F$. This part does not involve the \emph{Cast Calculus}, simply binding $x=\ell_F$ in the function's environment $\rho$, returning $f' := \lambda (y:\star) \case x \{ \dots \}$. Next, we evaluate the right side's cast expression using rule \textsc{Factor-Left} (\ref{eqn:ex1-factor-left}) which enfolds \textsc{Cast-Is-Value} (\ref{eqn:ex1-cast-is-value}). This results in a value $v' := (V : G \Rightarrow \star)$ where $V$ is a function cast and $G$ is \underline{function ground type} $\Pi(a:\star)\star$.
 
 \begin{align}
-& \Pi(a:\Bool) \Bool \rhd \underline{\Pi(a:\star) \star} \\
+& \Pi(a:\Bool) \Bool \rhd \underline{\Pi(a:\star) \star} \\ \hline
 & \notf : \Pi(a:\Bool) \Bool \Rightarrow \underline{\Pi(a:\star) \star} \\
-\Downarrow ( & \notf : \Pi(a:\Bool) \Bool \Rightarrow \Pi(a:\star) \star ) \\ \hline
+\Downarrow ( & \notf : \Pi(a:\Bool) \Bool \Rightarrow \Pi(a:\star) \star ) \label{eqn:ex1-cast-is-value} \\ \hline
 & \notf : \Pi(a:\Bool) \Bool \Rightarrow \star \\
-\Downarrow ( & \notf : \Pi(a:\Bool) \Bool \Rightarrow \Pi(a:\star) \star) : \underline{\Pi(a:\star) \star} \Rightarrow \star
+\Downarrow (( & \notf : \Pi(a:\Bool) \Bool \Rightarrow \Pi(a:\star) \star) : \underline{\Pi(a:\star) \star} \Rightarrow \star) \label{eqn:ex1-factor-left} \\
+= (& ~V \hspace{16.6em} : G \hspace{3.1em} \Rightarrow \star) =: v'
 \end{align}
 
-Now, we evaluate new-formed expression $f'~v'$, again an application. Evaluating the body of $f'$ eliminates the \case term by matching to label $\ell_F$. Substituting $f'[v'/y]$ results in cast expression $(v' : \star \Rightarrow \Pi(a:\Bool) \Bool)$. Since the right part of the cast is not a ground type we need to apply \textsc{Factor-Right} and subsequently \textsc{Cast-Collapse} and \textsc{Cast-Is-Value}. Invoking this cast reduction results in a function cast value $v'' := (V : \Pi(a: \star) \star \Rightarrow \Pi(a:\Bool) \Bool)$ with $V$ being a function cast, too (the same as above).
+Now, we evaluate new-formed expression $f'~v'$, again an application. Evaluating the body of $f'$, the \case term matches to label $\ell_F$. Substituting $f'[v'/y]$ results in cast expression $(v' : \star \Rightarrow \Pi(a:\Bool) \Bool)$. Since the right part of the cast is not a ground type we need to apply \textsc{Factor-Right} (\ref{eqn:ex1-factor-right}), including \textsc{Cast-Collapse} (\ref{eqn:ex1-cast-collapse}) and \textsc{Cast-Is-Value} (\ref{eqn:ex1-cast-is-value2}) for intermediate values. Invoking this cast reduction results in a function cast value $v'' := (V : \Pi(a: \star) \star \Rightarrow \Pi(a:\Bool) \Bool)$ with $V$ being a function cast, too (the same as above).
 
 \begin{align}
-\Pi(a:\Bool) \Bool & \rhd \underline{\Pi(a:\star)\star} \\
+\Pi(a:\Bool) \Bool & \rhd \underline{\Pi(a:\star)\star} \\ \hline
 v' : \star & \Rightarrow \underline{\Pi(a:\star)\star} \\
-\equiv ( V : \underline{\Pi(a:\star) \star} \Rightarrow \star) : \star & \Rightarrow \underline{\Pi(a:\star) \star}
-\Downarrow V \\ \hline
+= ( V : \underline{\Pi(a:\star) \star} \Rightarrow \star) : \star & \Rightarrow \underline{\Pi(a:\star) \star}
+\Downarrow V \label{eqn:ex1-cast-collapse} \\ \hline
 V : \underline{\Pi(a:\star) \star} & \Rightarrow \Pi(a:\Bool) \Bool \\
-\Downarrow (V : \Pi(a:\star) \star & \Rightarrow \Pi(a:\Bool) \Bool) \\ \hline
+\Downarrow (V : \Pi(a:\star) \star & \Rightarrow \Pi(a:\Bool) \Bool) \label{eqn:ex1-cast-is-value2} \\ \hline
 v' : \star & \Rightarrow \Pi(a:\Bool) \Bool \\
-\Downarrow (V : \Pi(a:\star) \star & \Rightarrow \Pi(a:\Bool) \Bool)
+\Downarrow (V : \Pi(a:\star) \star & \Rightarrow \Pi(a:\Bool) \Bool) =: v'' \label{eqn:ex1-factor-right}
 \end{align}
 
-Finally, we evaluate the full expression in the example function's false branch. We substitue the cast of variable $y$ with $v''$ and variable $x$ with $\ell_F$. What remains is application $v''~\ell_F$. Since $v''$ is a function cast value we use rule \textsc{Cast-Function}.
+Finally, we evaluate the full expression in the example function's false branch. We substitue the cast of variable $y$ with $v''$ and variable $x$ with $\ell_F$. What remains is application $v''~\ell_F$. Since $v''$ is a function cast value we use rule \textsc{Cast-Function} (\ref{eqn:cast-function}). This includes reduction of application $V~(\ell_F : \Bool \Rightarrow \star)$ which we need to solve first, using \textsc{Cast-Function}, too (\ref{eqn:cast-function-nested}), as well as \textsc{Cast-Collapse} (\ref{eqn:ex1-cast-collapse2}) (\ref{eqn:ex1-cast-collapse3}).
 
 \begin{align}
-\ell_F : \Bool \Rightarrow \star \Downarrow (\ell_F : \Bool \Rightarrow \star) \\
-(V~(\ell_F : \Bool \Rightarrow \star)) : \star \Rightarrow \Bool \\ \hline
-( \notf : \Pi(a:\Bool) \Bool \Rightarrow \Pi(a:\star) \star)~(\ell_F : \Bool \Rightarrow \star) \\
-(\ell_F : \Bool \Rightarrow \star) : \star \Rightarrow \Bool \Downarrow \ell_F \\
-(\notf~\ell_F : \Bool \Rightarrow \star) \downarrow (\ell_T : \Bool \Rightarrow \star) \\ \hline
-(\ell_T : \Bool \Rightarrow \star) : \star \Rightarrow \Bool \Downarrow \ell_T
+(&\ell_F : \Bool \Rightarrow \star) : \star \Rightarrow \Bool \Downarrow \ell_F \label{eqn:ex1-cast-collapse2} \\ \hline
+&~V~ \hspace{16.6em} (\ell_F : \Bool \Rightarrow \star) \\
+= ( &\notf : \Pi(a:\Bool) \Bool \Rightarrow \Pi(a:\star) \star)~(\ell_F : \Bool \Rightarrow \star) \\
+\Downarrow ( &\notf \ell_F ) : \Bool \Rightarrow \star \\
+\downarrow ~~&~\ell_T : \Bool \Rightarrow \star \label{eqn:cast-function-nested} \\
+\Downarrow (&~\ell_T : \Bool \Rightarrow \star) \\ \hline
+( & ~V~(\ell_F : \Bool \Rightarrow \star)) : \star \Rightarrow \Bool \\
+\downarrow (&~\ell_T : \Bool \Rightarrow \star) : \star \Rightarrow \Bool \label{eqn:cast-function} \\
+\Downarrow ~~ & ~\ell_T \label{eqn:ex1-cast-collapse3}
 \end{align}
+
+In conclusion, even the reductions for a relatively simple function cast are quite involved, requiring many rules and operations. Note that when full \emph{gradual typing} is implemented, the explicit casts are not written out by the programmer.
