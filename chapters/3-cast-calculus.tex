@@ -11,12 +11,12 @@ The \emph{Cast Calculus Label Dependent Lambda Calculus} is an extension to regu
  A ::= & \enspace \dots \enspace|\enspace
      \star \enspace|\enspace \bot \enspace|\enspace \top
 \end{align*}
-\caption{Extensions to LDLC for CCLDLC for expression $M$ and types $A, A', B, B'$.}
+\caption[Extensions to LDLC for CCLDLC]{Extensions to LDLC for CCLDLC for expression $M$ and types $A, A', B, B'$.}
 \label{fig:ccldlc-extensions}
 \end{figure}
 
-CCLDLC adds the cast and blame expression as well as the dynamic type, top type and bottom type; see figure~\ref{fig:ccldlc-extensions}.
-The bottom type's single purpose is as type for the blame expression $(\blame : \bot)$. The top type is only used for unfolding the bottom type, evaluating $\bot$ to a function of any argument $\Pi(y:\top)\bot$, the \emph{smallest function type}. Every type $A$ is a subtype of $\top$ ($A \leq \top$) and $\bot$ is a subtype of every type $B$ ($\bot \leq B$). Hence, the smallest function type describes a function accepting any argument, always evaluating to \blame.
+CCLDLC adds the cast and blame expressions as well as the dynamic type, top type and bottom type; see figure~\ref{fig:ccldlc-extensions}.
+The bottom type's single purpose is as type for the blame expression $(\blame : \bot)$. The top type is only used for unfolding the bottom type, evaluating $\bot$ to a function of any argument $\Pi(y:\top)\bot$, the \emph{smallest function type}. Every type $A$ is a subtype of $\top$ ($A \leq \top$) and $\bot$ is a subtype of every type $B$ ($\bot \leq B$). Hence, the smallest function type we just described contains functions which accept any argument, then always evaluating to \blame.
 
 \section{Values}
 
@@ -25,7 +25,7 @@ The bottom type's single purpose is as type for the blame expression $(\blame : 
  V ::= & \enspace \dots \enspace
         |\enspace (V : G \Rightarrow \star) & \text{dynamic wrapper}\\
       & |\enspace (\rho, \lambda(x:A)M) & \text{closure} \\
-      & |\enspace (V : (\rho, \Pi(x:A) A') \Rightarrow (\rho, \Pi(x:B) B') ) \\
+      & |\enspace (V : (\rho, \Pi(x:A) A') \Rightarrow (\rho, \Pi(x:B) B') ) & \text{function type cast} \\
  G ::= & \Unit \enspace|\enspace
     L \enspace|\enspace
     \Single\{V: \Unit\} \enspace|\enspace
@@ -35,19 +35,19 @@ The bottom type's single purpose is as type for the blame expression $(\blame : 
     \Sigma(x:\star)\star \\
  \rho ::= & \enspace \cdot \enspace|\enspace \rho, x = V
 \end{align*}
-\caption{Values $V$ and ground types $G$ in CCLDLC with environment $\rho$ and variable $x$.}
+\caption[Values $V$ and ground types $G$ in CCLDLC]{Values $V$ and ground types $G$ in CCLDLC with environment $\rho$ and variable $x$.}
 \label{fig:ccldlc-extensions-values}
 \end{figure}
 
-Values are extended in a less intuitive way, see figure~\ref{fig:ccldlc-extensions-values}. First, there is a \emph{dynamic wrapper}, representing a cast of value $V$ from a ground type $G$ to dynamic type $\star$. The whole cast term is a value itself. A ground type indicates an application of dynamic arguments to a top level type constructor as well as subtyping capabilities. Hence, label types are ground types, together with the unit type and corresponding singleton types. There are also ground types for function types $\Pi$ where argument and return type are unknown and for pair types $\Sigma$ with unknown component types.\footnote{Here, an ``unknown type'' means unknown at runtime, thus we use the dynamic type $\star$.}
+Values are extended in a less intuitive way, see figure~\ref{fig:ccldlc-extensions-values}. First, there is a \emph{dynamic wrapper} $V : G \Rightarrow \star$, representing a cast of value $V$ from a ground type $G$ to dynamic type $\star$. The whole cast term is a value itself. A ground type indicates an application of dynamic arguments to a top level type constructor as well as subtyping capabilities. Hence, label types are ground types, together with the unit type and corresponding singleton types. There are also ground types for function types $\Pi$ where argument and return type are unknown and for pair types $\Sigma$ with unknown component types.\footnote{Here, an ``unknown type'' means unknown before runtime, thus we use the dynamic type $\star$.}
 
 Next, a function closure where the evaluation environment $\rho$ is explicitly part of the value.
 
-And finally a function type cast for value $V$ of a specific function type to another one. \todo{Why is this necessary?}
+And finally a function type cast for value $V$ of a specific function type to another one. This is necessary for reducing function casts and is shown in greater detail when describing the implementation.
 
 \section{Type Inference Rules / Evaluation Rules}\label{sec:ccldlc-inference-rules}
 
-We now introduce additional evaluation rules, especially for the cast expression. Such a \emph{cast reduction} is written $(V : A^\circ : B^\circ) \Downarrow V'$, and turns a value $V$ of type $A^\circ$ into value $V'$ of type $B^\circ$. In contrast, when the evaluation reaches \blame, it simply fails. This failure needs to be handled by the implementation. The whole set cast reduction rules is listed in figure~\ref{fig:cast-reduction-rules}.
+We now introduce additional evaluation rules, especially for the cast expression. Such a \emph{cast reduction} is written $(V : A^\circ \Rightarrow B^\circ) \Downarrow V'$, and turns a value $V$ of type $A^\circ$ into value $V'$ of type $B^\circ$. In contrast, when the evaluation reaches \blame, it simply fails. This failure needs to be handled by the implementation. The whole set cast reduction rules is listed in figure~\ref{fig:cast-reduction-rules}.
 
 \begin{figure}
 \begin{mathpar}
@@ -115,13 +115,13 @@ We now introduce additional evaluation rules, especially for the cast expression
 \label{fig:cast-reduction-rules}
 \end{figure}
 
-In figure~\ref{fig:ccldlc-extensions}, the cast expression $(M : A \Rightarrow B)$ consists of an expression $M$ of type $A$ and a target type $B$. The \textsc{Cast-Reduce} rule describes proceed: In environment $\rho$, the given expression is evaluated ($M \downarrow V$) resulting in a value. As for the types $A$ and $B$, we need to evaluate them into \emph{head normal form} ($A \downarrow A^\circ$; $B \downarrow B^\circ$).
+In figure~\ref{fig:ccldlc-extensions}, the cast expression $(M : A \Rightarrow B)$ consists of an expression $M$ of type $A$ and a target type $B$. The \textsc{Cast-Reduce} rule describes proceed: In environment $\rho$, the given expression is evaluated ($M \downarrow V$) resulting in a value. As for the types $A$ and $B$, we need to evaluate them to \emph{head normal form} ($A \downarrow A^\circ$; $B \downarrow B^\circ$).
 
 \vspace{4ex}\hrule
 
 \renewcommand{\mkcitation}[1]{\\--- #1}
 \begin{displayquote}[\cite{peytonjones1987the}]
-A lambda expression in in \emph{head normal form} (HNF) if and only if it is of the form
+A lambda expression is in \emph{head normal form} (HNF) if and only if it is of the form
 \begin{equation*}
 \lambda x_1 . \lambda x_2 \dots \lambda x_n . (v~M_1~M_2~\dots~M_m)
 \end{equation*}
@@ -156,3 +156,46 @@ L &\rhd L \\
 \caption{Type matching from HNF type $A^\circ$ to ground type $G$}
 \label{fig:ccldlc-type-matching}
 \end{figure}
+
+\section{Program Structure}\label{sec:program-structure}
+
+LDGV is built out of a number of modules. There is a clear hierarchy as seen in the dependency graph in figure~\ref{fig:dependency-graph}. Each functionality encompasses an independent group of modules:
+
+\begin{itemize}
+ \item Module \texttt{Parsing}, including tokenization
+ \item Module \texttt{Typechecker}, including modules for typechecking expressions and another one for subtyping in particular.
+ \item Module \texttt{Interpreter} with data types for environment and values.
+\end{itemize}
+
+Most modules depend on the \texttt{Syntax} module. It provides data types for language constructs like expressions, types and literals. When invoking the program's functionality, the relevant module functions are invoked in order, e.g. when running the interpreter it (1) parses the source code, (2) runs the type checker on the AST and on success, it finally (3) interprets the AST's \texttt{main} function if available and returns its value.   Then again, running the type checker stops right before interpretation.
+
+\begin{figure}
+ \centering
+ \includegraphics[width=20cm,angle=90]{figures/depgraph_new_concept_nocompiler.dot.pdf}
+ % depgraph_new_concept.dot.pdf: 1197x332 px, 72dpi, 42.23x11.71 cm, bb=0 0 1197 332
+ \caption[Module dependencies of LDGV]{Module dependencies of LDGV, simplified without utility modules}
+ \label{fig:dependency-graph}
+\end{figure}
+
+Since the module groups are separated, only the Interpreter knows about values, though there is no dependency on the type checker. The interpreter for LDLC does not need to know about types, its only concern is the evaluation of expressions, i.e. after type checking, \emph{type erasure} occurs, simplifying the implementation (see: \cite{crary2002}).
+
+For the cast calculus, most adaptions happen in the interpreter, implementing runtime casts. Parts of the aforementioned simplicity regarding type erasure have to be abandoned to introduce \emph{type passing} wheresoever necessary.
+
+But first things first, we implement preliminary language constructs, starting with the most basic module: In the \texttt{Syntax} module, we add a constructor for the cast $(M : A \Rightarrow B)$ to the data type for expressions, accepting an expression $M$ and two types $A$ and $B$. We also add two argumentless types: bottom type $\bot$ and dynamic type $\star$. In section~\ref{sec:cc-expressions} we mentioned the top type $\top$, which we do not implement, because there actually is no expression of type $\top$. When declaring a function taking an argument of arbitary type, the programmer will use the dynamic type $\lambda(x:\star)M$. This implies that variable $x$ is handled at runtime. A function $\lambda(x:\top)M$ is only sound if $M = \blame$, which is not necessary since we archive the same result by unfolding.
+
+The modules connected to \texttt{Parsing} need to reflect these modifications. We introduce tokens for the dynamic type and the bottom type and extend the grammar accordingly. We also add an expression for casts. Finally, there is an additional implementation of recursor \rec for jointly handling substitutions of expressions and types: \texttt{new\_natrec}. See figure~\ref{lst:ccldlc-grammar}.
+
+\begin{lstlisting}[float,language=ldgv,
+  caption=New language constructs for CCLDLC,
+  label=lst:ccldlc-grammar]
+Bot           -- bottom type
+*             -- dynamic type
+exp : A => B  -- cast expression
+new_natrec f : x.T.A { M, y.N }
+\end{lstlisting}
+
+The module group forming the \texttt{Typechecker} needs to handle the new types. $\bot$ is made a subtype to everything and the subtyping rules for $\star$ are implemented \emph{without introducing transitivity}. Even though we permit a cast from any type $A$ to $\star$ and $\star$ to any type $B$ this does tell us nothing about subtyping relations between $A$ and $B$. Finally, we check that for an expression $(M : A \Rightarrow B)$ the encapsulated expression $M$ is of type $A$ while the cast itself is handled at runtime by the interpreter.
+
+The \texttt{Interpreter} needs most adjustments. The evaluation rules from section~\ref{sec:ccldlc-inference-rules} are applied at runtime. Since there is no direct dependency between typechecker and interpreter, we also exchange no data, i.e. the results of typechecking are disregarded by the interpreter to avoid entanglement. While the typechecker asserts type safety within cast expressions, the actual cast reduction is always deferred to the interpretation stage.
+
+We extend the \texttt{ProcessEnvironment} module in a way that introduces the necessary types, i.e. \emph{HNF types} and \emph{ground types}. In the \texttt{Interpreter} module itself, we add functions for type evaluation (to already existing support for expressions and statements) and finally cast reduction. The resulting values are handled as before, making this a conservative extension. The next chapter details these translations from formal rules to actual code.

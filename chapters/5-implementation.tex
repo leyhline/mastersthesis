@@ -15,7 +15,8 @@ data Type = ...
 
 As usual, there is a tokenization step before the actual parsing, turning a string into tokens. For this purpose, we use the tool \emph{Alex: A lexical analyser generator for Haskell}\footnote{\url{https://www.haskell.org/alex/}}, maintained by Simon Marlow, as it nicely integrates with Haskell. We add tokens for the bottom type and the the double arrow used in cast expressions. In our implementation, we use \texttt{*} as identifier for the dynamic type. There already exists a corresponding token since it was used for multiplication in the base language.
 
-\begin{lstlisting}[caption=Additional tokens (\texttt{Parsing/Tokens.x})]
+\begin{lstlisting}[float,
+  caption=Additional tokens (\texttt{Parsing/Tokens.x})]
 data Token = ...
   | TBot
   | DoubleArrow
@@ -109,12 +110,39 @@ unfold tenv (TCase val@(Var x) cases) = do
   where f ::
 \end{lstlisting}
 
+Furthermore, we have to consider casts in context of \case types. Given a type $\case (M : A \Rightarrow B)~\{\overline{\ell : A_\ell}\}$ we need to implement subtyping in relation to other types. We use the following rule \textsc{Sub-Case-Cast}:
+
+\begin{equation*}
+\inferrule[Sub-Case-Cast]
+  {\Gamma \vdash D \leq L \and L \subseteq L'}
+  {\Gamma,x:D,\Delta \vdash
+    \case(x:D \Rightarrow L) \{\overline{\ell : A_\ell}\}
+    \leq
+    \case (x:D \Rightarrow L') \{\overline{\ell : A'_\ell}\} }
+\end{equation*}
+
+The corresponding code is given as follows. Both type arguments need to be \case types, and the type casts have to target label types.
+
+\begin{lstlisting}[caption=Subtyping for casts in case terms (\texttt{TCSubtyping.hs})]
+subtype' :: TEnv -> Type -> Type -> TCM Kind
+subtype'
+  tenv
+  (TCase (Cast e  t1  t2@(TLab  ls))  cases)
+  (TCase (Cast e' t1' t2'@(TLab ls')) cases') =
+    let isSubset = fromList ls `isSubsetOf` fromList ls' in
+    if not isSubset
+    then TC.mfail "Label subtyping failure"
+    else do
+      subtype' tenv t1 t2
+\end{lstlisting}
+
+
 \section{Interpreter}
 
 In basic LDGV, types are not relevant in context of evaluation. The interpreter works on the assumption that prior typechecking did succeed. In our extension, cast expressions are always handled at runtime, even if both types in a cast $M : A \Rightarrow B$ are not dynamic ($A \neq \star, B \neq \star$).
 For correct handling of the dynamic type and type reduction of cast expressions we introduce new data types and extend the existing data type for values. Finally, we implement the rules of section~\ref{sec:ccldlc-inference-rules}.
 
-In chapter~\ref{chap:cast-calculus} we listed rules for handling singleton types $\Single\{A\}$ as given in the original paper. The implementation does not support explicit singleton types in its grammer. Therefore, from this point onwards, singleton types will not be considered.
+In chapter~\ref{chap:cast-calculus} we also listed rules for handling singleton types $\Single\{A\}$ as given in the original paper. The implementation does not support explicit singleton types in its grammer. Therefore, from this point onwards, singleton types will not be considered.
 
 \subsection{Type Passing}
 
@@ -132,12 +160,10 @@ data NFType
   | NFDouble
   | NFGType GType
 
-type Label = String
-type LabelType = Set Label
 data FuncType = FuncType PEnv String Type Type
 \end{lstlisting}
 
-The constructor \texttt{NFGType} is a special case. It takes an argument of type \texttt{GType}---the data type implementing \emph{ground types}---which we define in listing~\ref{lst:gtype}. This type dependency depicts that every ground type is also in head normal form---but not the other way around---while making comparison operations between \texttt{NFType} and \texttt{GType} possible. At the same time, defining ground types as a separate data type allows for more precise function signatures. Even so, we can not perfectly model the relationship since Haskell itself is not dependently typed. A function type $(\cdot, \Pi(x:\star)\star)$ can be written as simple \texttt{NFGType GFunc} or as \texttt{NFFunc (FuncType [] "x" TDyn TDyn)}. The latter is semantically correct but must not occur it most contexts. We have to resort to helper function like \texttt{equalsType} and additional logic to resolve such cases.
+The constructor \texttt{NFGType} is a special case. It takes an argument of type \texttt{GType}---the data type implementing \emph{ground types}---which we define in listing~\ref{lst:gtype}. This type dependency depicts that every ground type is also in head normal form---but not the other way around---while making comparison operations between \texttt{NFType} and \texttt{GType} possible. At the same time, defining ground types as a separate data type allows for more precise function signatures. Even so, we can not perfectly model the relationship since Haskell itself is not dependently typed. A function type $(\cdot, \Pi(x:\star)\star)$ can be written as \texttt{NFGType GFunc} or as \texttt{NFFunc (FuncType [] "x" TDyn TDyn)}. The latter is semantically correct but must not occur it most contexts. We have to resort to helper function like \texttt{equalsType} and additional logic to resolve such cases.
 
 \begin{lstlisting}[float,
   caption=Ground type definition (\texttt{ProcessEnvironment.hs}),
@@ -148,6 +174,9 @@ data GType
   | GFunc String
   | GPair String
 
+type Label = String
+type LabelType = Set Label
+
 equalsType :: NFType -> GType -> Bool
 equalsType (NFFunc (FuncType _ _ s TDyn TDyn)) (GFunc s') =
   s == s'
@@ -157,7 +186,7 @@ equalsType (NFGType gt1) gt2 = gt1 == gt2
 equalsType _ _ = False
 \end{lstlisting}
 
-Subtyping checks are implemented in listing~\ref{lst:subtypeable} instroducing typeclass \texttt{Subtypeable} with instances for ground types \texttt{GType}---mostly with trivial definitions---and partially for HNF types \texttt{NFType}. The latter is solely necessary for implementing the \emph{Cast-Dyn-Dyn} rule.
+Subtyping checks are implemented in listing~\ref{lst:subtypeable} instroducing typeclass \texttt{Subtypeable} with instances for ground types \texttt{GType}---mostly with trivial definitions---and partially for HNF types \texttt{NFType}. The latter is solely necessary for implementing the \textsc{Cast-Dyn-Dyn} rule.
 
 \begin{lstlisting}[float,
   label=lst:subtypeable,
@@ -180,9 +209,11 @@ instance Subtypeable NFType where
   isSubtypeOf _ _ = False
 \end{lstlisting}
 
-We also extend the value type according to section~\ref{sec:cc-expressions}. We add function closures, including environment $\rho$, variable name and the expression in the function's body. Furthermore function casts and the dynamic wrapper $V : G \Rightarrow \star$.
+We also extend the value type according to section~\ref{sec:cc-expressions}. We add function closures, including environment $\rho$, variable name and the expression in the function's body. Furthermore function casts and the dynamic wrapper $V : G \Rightarrow \star$ (see listing~\ref{lst:ccldlc-value-type}).
 
-\begin{lstlisting}[caption=Value type extensions (\texttt{ProcessEnvironment.hs})]
+\begin{lstlisting}[float,
+  label=lst:ccldlc-value-type,
+  caption=Value type extensions (\texttt{ProcessEnvironment.hs})]
 data Value = -- ...
   | VFunc PEnv String Exp
   | VFuncCast Value FuncType FuncType
@@ -389,7 +420,7 @@ interpretApp (VFuncCast v
     lift interpretAppCast
 \end{lstlisting}
 
-\section{Examples}
+\section{Function Cast Example}
 
 To give an intuition about the reduction of cast expressions regarding the rules and implementation we show a non-trivial example. We evaluate a nested lambda expression taking two arguments $x,y$. While $x$ hat type \Bool, the type of $y$ is dynamic. In the function's body $y$ depends on the value of $x$, hence a cast. If $x=\ell_F$ then $y$ is a function mapping one boolean argument to a boolean result, then applying $x$. Else, for $x=\ell_T$, $y$ is a function expecting \emph{two} arguments, applying $x$ two successive times. Please note that the actual code in listing~\ref{lst:ccldgv-example1} is nearly identical to CCLDLC form in equation~\ref{eqn:ccldlc-example1}.
 
@@ -458,3 +489,5 @@ Finally, we evaluate the full expression in the example function's false branch.
 \end{align}
 
 In conclusion, even the reductions for a relatively simple function cast are quite involved, requiring many rules and operations. Note that when full \emph{gradual typing} is implemented, the explicit casts are not written out by the programmer.
+
+\section{New Natural Recursor}

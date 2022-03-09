@@ -1,15 +1,15 @@
 \chapter{Foundations}\label{chap:foundations}
 
-Before diving into the \emph{Cast Calculus} we introduce the foundation, the \emph{Label Dependent Lambda Calculus} and its implementation LDGV.
+Before diving into the \emph{Cast Calculus} we introduce the foundation, the \emph{Label Dependent Lambda Calculus} (LDLC) and its implementation LDGV.
 
 \section{Label Dependent Lambda Calculus}\label{sec:ldlc}
 
 The LDLC is the foundation of this work. Its main aspect is the gain of additional simplicity in context of session types. The introduction of labels results in decouped operations in sending and receiving functions, hence being more lightweight regarding its semantics. See \cite{thiemann2019}. However, session types are not of special relevance when introducing casts. For brevity, we will omit the handling of session types, focusing on labels instead.
 
 A list of language constructs is found in figures~\ref{fig:ldlc-expressions}~to~\ref{fig:ldlc-values}. There is support for common functionality like variables, expressions and types,\footnote{
-Variable names for expressions have to start with a lowercase letter, e.g. \texttt{\valb x = ()}; for types its an uppercase letter: \texttt{\typeb X : Unit}.} functions and pairs as well as numerical operations and values. In general---as implied by its name---its based on \emph{Simply Typed Lambda Calculus} (details can be found in most introductory literature, e.g. \cite{pierce2002}). As in many functional languages, there is also the unit type $\Unit$ encompassing its only value ``$()$''.
+Variable names for expressions have to start with a lowercase letter, e.g. \texttt{\valb x = ()}; for types its an uppercase letter: \texttt{\typeb X : Unit}.} functions and pairs as well as numerical operations and values. In general---as implied by its name---it is based on \emph{Simply Typed Lambda Calculus} (details can be found in most introductory literature, e.g. \cite{pierce2002}). As in many functional languages, there is also the unit type $\Unit$ encompassing its only value ``$()$''.
 
-Another two language concepts are more interesting: First and foremost, the support for labels $\ell$. Labels can habe arbitrary names. A set of distinct labels forms a type. Moreover, there is a recursor over natural numbers $\rec V M x.y.N$. This allows for recursively constructing expressions by using base expression $M$ for $n=0$ and otherwise expression $N$ with appropriate substitutions.
+Another two language concepts are more interesting: First and foremost, the support for labels $\ell$. Labels can habe arbitrary names. A set of distinct labels forms a type. Moreover, there is a recursor over natural numbers $\rec V M x.f.N$. This allows for recursively constructing expressions by using base expression $M$ for $n=0$ and otherwise expression $N$ with appropriate substitutions for $x$ and $f$.
 
 \begin{figure}
 \begin{align*}
@@ -20,7 +20,7 @@ Another two language concepts are more interesting: First and foremost, the supp
       x \in \mathbb{R} \\
     & |\enspace M \circ N & \circ \in \{+,-,\times,\div\} \\
     & |\enspace \case M \{\overline{\ell : N_\ell}\} & \text{label expression matching} \\
-    & |\enspace \rec V~M~x.y.N & \mathbb{N}\text{ recursor} \\
+    & |\enspace \rec V~M~x.f.N & \mathbb{N}\text{ recursor} \\
     & |\enspace \lambda (x : A).M & \text{abstraction} \\
     & |\enspace M~N & \text{application}\\
     & |\enspace \letb x = M \inb N & \text{bind in $N$}\\
@@ -67,35 +67,35 @@ Another two language concepts are more interesting: First and foremost, the supp
 
 The main feature of LDLC is its use of labels. A label evaluates to itself, thus it forms its own value. But what about its type? Any finite non-empty set of labels $L$ is a type. For instance, this is sufficient to declare a boolean type as seen in equation~\ref{eqn:bool}.
 
-The minimal type is the singleton type of its corresponding label. For label $\ell$ this is $\{\ell\}$. Apart from that there is might be a bottom type $\bot$ which corresponds to a hypothetical empty label set. Neither type $\bot$ nor the empty label set are valid types in LDLC.
+The minimal type is the singleton type of its corresponding label. For label $\ell$ this is $\{\ell\}$. Apart from that there might be a bottom type $\bot$ which corresponds to a hypothetical empty label set. Neither type $\bot$ nor the empty label set are valid types in LDLC.
 
-Predominantly, labels appear in context of \case terms. These may occur as expressions or as types and act as eliminator for labels. They provide a mapping from each label of the corresponding label set to an expression or a type. Hence the name of the calculus, \emph{Label Dependent} Lambda Calculus. The type of an expression may depend on a label value.
+Predominantly, labels appear in context of \case terms. These may occur as expressions or as types and act as eliminators for labels. They provide a mapping from each label of the corresponding label set to an expression or a type. Hence the name of the calculus, \emph{Label Dependent} Lambda Calculus. The type of an expression may depend on a label value.
 
 \subsection{Recursor over Natural Numbers}
 
-In addition to label dependency, there is another construct dependency on natural numbers: \rec V~M~x.y.N
+In addition to label dependency, there is another construct used for dependency on natural numbers: $\rec V~M~x.f.N$
 
 Value $V$ must be a natural number value which can also be written recursively using the constructors $Z$ (for zero) and $S(V)$ for the successor of $V$. An encoding for a natural number is given by $\overline{n} = S(\dots S(Z))$. When evaluating a recursor, there is a case differentiation by value $V$.
 
-If $V=Z$ the whole expression is reduced to $M$, discarding its latter term. Otherwise, for $V=S(V')$, the \rec expression is reduced to expression $N$ with the following two substitutions: variable $x$ in $N$ is substituted by $V'$, the precessor of $S(V')$; variable $y$ by $\rec V'~M~x.y.N$, the result of the ``previous'' evaluation of the recursor.
+If $V=Z$ the whole expression is reduced to $M$, discarding its latter term. Otherwise, for $V=S(V')$, the \rec expression is reduced to expression $N$ with the following two substitutions: variable $x$ in $N$ is substituted by $V'$, the precessor of $S(V')$; variable $f$ by $\rec V'~M~x.f.N$, the result of the ``previous'' evaluation of the recursor.
 
 \begin{figure}
  \begin{align*}
- & \rec Z~M~x.y.N \longrightarrow M \\
- & \rec S(V)~M~x.y.N \longrightarrow N [V/x] [\rec V~M~x.y.N/y] \\
- & \rec Z~A~t.B \equiv A \\
- & \rec S(V)~A~t.B \equiv B [\rec V~A~t.B/t]
+ \rec Z~&M~x.f.N \longrightarrow M \\
+ \rec S(V)~&M~x.f.N \longrightarrow N [V/x] [\rec V~M~x.f.N/f] \\
+ \rec Z~&A~t.B \longrightarrow A \\
+ \rec S(V)~&A~t.B \longrightarrow B [\rec V~A~t.B/t]
 \end{align*}
-\caption{Nat. recursor expression reduction and type equivalence}
+\caption{Nat. recursor expression reduction and type reduction}
 \label{fig:ldlc-rec-exp}
 \end{figure}
 
 
-It is similar for type conversion of $\rec V~A~t.B$. For $V=Z$, the resulting type is simply $A$. As for $V=S(V')$, the resulting type is given by $B$ after substituting type identifier $t$ in $B$ with $\rec V'~A~t.B$.
+It is similar for type conversion of $\rec V~A~t.B$. For $V=Z$, the resulting type is simply $A$. As for $V=S(V')$, the resulting type is given by $B$ after substituting type identifier $t$ in $B$ with $\rec V'~A~t.B$. Both reductions are consisely listed in figure~\ref{fig:ldlc-rec-exp}.
 
 \subsection{Subtyping}
 
-We list an excerpt of relevant subtyping rules of LDLC in figure~\ref{fig:ldgv-subtyping}. For CCLDLC they gain additional relevance since they are necessary not only for type checking but now for type casts during runtime, too.
+We give an excerpt of relevant subtyping rules of LDLC in figure~\ref{fig:ldgv-subtyping}. For CCLDLC they gain additional relevance since they are necessary not only for type checking but now for type casts during runtime, too.
 
 Since a label type is a set of labels we can use set comparisons for subtyping. If one label type $L$ is a subset of another label type $L'$, then $L$ is a subtype of $L'$. Thus, there is no $L$ that is a subtype of $\bot$. Subtyping in LDLC is closed under transitivity.
 
@@ -116,14 +116,14 @@ Since a label type is a set of labels we can use set comparisons for subtyping. 
 \\
 \Gamma ::= \cdot \enspace | \enspace \Gamma, x:A
 \end{mathpar}
-\caption{Subtyping rules in LDGV (excerpt) w.r.t. type environment $\Gamma$}
+\caption[Subtyping rules in LDGV (excerpt)]{Subtyping rules in LDGV (excerpt) w.r.t. type environment $\Gamma$}
 \label{fig:ldgv-subtyping}
 \end{figure}
 
 
 \section{LDGV Interpreter}
 
-LDGV stands for ``Label Dependency'' and ``Gay \& Vasconcelos'', the authors of multiple papers about Session Types, e.g. \cite{gayvasconcelos2010}. In this work's context, it is the name of an interpreter and compiler for LDLC and its extension CCLDLC. It is written in the Haskell programming language.
+LDGV stands for ``Label Dependency'' and ``Gay \& Vasconcelos'', the authors of multiple papers about Session Types, e.g. \cite{gayvasconcelos2010}. In this work's context, it is the name of an interpreter for LDLC and its extension CCLDLC. It is written in the Haskell programming language.
 
 Its syntax is similar the calculus from the previous section. We give an excerpt in listing~\ref{lst:ldgv-expressions}. In general, keywords and structure are identical save for labels. To uniquely identify a label it needs to be a combination of alphanumeric characters, prefixed by an apostroph.
 
@@ -133,6 +133,7 @@ Its syntax is similar the calculus from the previous section. We give an excerpt
 ()          -- unit
 M + N       -- and other arithmetic
 10          -- numbers
+"foo bar"   -- strings
 x           -- variables
 'foo        -- labels
 case M {'foo: M, 'bar: P}
@@ -147,6 +148,7 @@ The syntax for types is given in listing~\ref{lst:ldgv-types}. Writing out funct
   label=lst:ldgv-types]
 Unit
 Int
+String
 T             -- type identifier
 {'foo, 'bar}  -- label type
 case M {'foo: A, 'bar: B}
@@ -154,17 +156,16 @@ case M {'foo: A, 'bar: B}
 [x: A, B]     -- pair type
 \end{lstlisting}
 
-For an actual program there are statements, especially declarations. They create the global environment, binding expressions to variables and types to type identifiers. When running the interpreter on a given program, it outputs the evaluation result of the expression bound to variable \texttt{main}. Furthermore, there are type assertions. The full list of statements in given in listing~\ref{lst:ldgv-statements}.
+For an actual program there are statements, especially declarations. They create the global environment, binding expressions to variables and types to type identifiers\footnote{For type identifiers, the programmer has to supply a \emph{kind}. For breivity, we omit the introduction of kinds, mostly assuming \texttt{\textasciitilde un} is given.}. When running the interpreter on a given program, it outputs the evaluation result of the expression bound to variable \texttt{main}. Furthermore, there are type assertions. The full list of statements in given in listing~\ref{lst:ldgv-statements}.
 
 \begin{lstlisting}[float,language=ldgv,
-  caption={Statements in LDGV, with expressions \texttt{M,N} and types \texttt{A,B}},
+  caption={Statements in LDGV, with expression \texttt{M} and types \texttt{A,B}},
   label=lst:ldgv-statements]
-val x = M   -- variable declaration
-val x : A   -- variable signature declaration
-type T : A  -- type declaration
-A <: B      -- subtype assertion
-A =: B      -- type equivalence assertion
-= x M N     -- WHAT DOES THIS DO?
+val x = M         -- variable declaration
+val x : A         -- variable signature declaration
+type T : ~un = A  -- type declaration
+A <: B            -- subtype assertion
+A =: B            -- type equivalence assertion
 \end{lstlisting}
 
 Translating equation~\ref{eqn:ldlc} into a valid LDGV program results in the sample program in figure~\ref{lst:ldgv-program}. The variable's type signatures \texttt{val x:A} are optional.
@@ -173,7 +174,7 @@ Variable \texttt{main} gives an example application, fully evaluating to value \
 \begin{lstlisting}[float,language=ldgv,numbers=left,
   caption=Sample LDGV program,
   label=lst:ldgv-program]
-type Bool : {'T, 'F}
+type Bool : ~un = {'T, 'F}
 
 val not : (a: Bool) -> Bool
 val not   (a: Bool) = (case a {'T: 'F, 'F: 'T})
@@ -185,5 +186,5 @@ val f = fn(x: Bool)
           fn(y: case x {'T: Int, 'F: Bool})
             case x {'T: 17+y, 'F: not y}
 
-val main = f 'F 'T  -- results in value 'F
+val main = f 'F 'T
 \end{lstlisting}
