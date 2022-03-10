@@ -1,6 +1,7 @@
 out/
 
 # Latex files
+*.lol
 *.aux
 *.bbl
 *.blg

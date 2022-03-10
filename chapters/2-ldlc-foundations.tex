@@ -4,12 +4,12 @@ Before diving into the \emph{Cast Calculus} we introduce the foundation, the \em
 
 \section{Label Dependent Lambda Calculus}\label{sec:ldlc}
 
-The LDLC is the foundation of this work. Its main aspect is the gain of additional simplicity in context of session types. The introduction of labels results in decouped operations in sending and receiving functions, hence being more lightweight regarding its semantics. See \cite{thiemann2019}. However, session types are not of special relevance when introducing casts. For brevity, we will omit the handling of session types, focusing on labels instead.
+The LDLC is the foundation of this work. Its main aspect is the gain of additional simplicity in context of session types. The introduction of labels results in decoupled operations when sending and receiving functions, hence being more lightweight regarding its semantics. See \cite{thiemann2019}. However, session types are not of special relevance when introducing casts. For brevity, we will omit the handling of session types, focusing on labels instead.
 
 A list of language constructs is found in figures~\ref{fig:ldlc-expressions}~to~\ref{fig:ldlc-values}. There is support for common functionality like variables, expressions and types,\footnote{
 Variable names for expressions have to start with a lowercase letter, e.g. \texttt{\valb x = ()}; for types its an uppercase letter: \texttt{\typeb X : Unit}.} functions and pairs as well as numerical operations and values. In general---as implied by its name---it is based on \emph{Simply Typed Lambda Calculus} (details can be found in most introductory literature, e.g. \cite{pierce2002}). As in many functional languages, there is also the unit type $\Unit$ encompassing its only value ``$()$''.
 
-Another two language concepts are more interesting: First and foremost, the support for labels $\ell$. Labels can habe arbitrary names. A set of distinct labels forms a type. Moreover, there is a recursor over natural numbers $\rec V M x.f.N$. This allows for recursively constructing expressions by using base expression $M$ for $n=0$ and otherwise expression $N$ with appropriate substitutions for $x$ and $f$.
+Another two language concepts are more interesting: First and foremost, the support for labels $\ell$. Labels can have arbitrary names. A mathematical set of distinct labels forms a type. Moreover, there is a recursor over natural numbers $\rec V~M~x.f.N$. This allows for recursively constructing expressions by using base expression $M$ for $n=0$ and otherwise expression $N$ with appropriate substitutions for $x$ and $f$.
 
 \begin{figure}
 \begin{align*}
@@ -19,7 +19,7 @@ Another two language concepts are more interesting: First and foremost, the supp
       \ell \enspace|\enspace
       x \in \mathbb{R} \\
     & |\enspace M \circ N & \circ \in \{+,-,\times,\div\} \\
-    & |\enspace \case M \{\overline{\ell : N_\ell}\} & \text{label expression matching} \\
+    & |\enspace \case M \{\overline{\ell : N_\ell}^{\ell \in L} \} & \text{label expression matching} \\
     & |\enspace \rec V~M~x.f.N & \mathbb{N}\text{ recursor} \\
     & |\enspace \lambda (x : A).M & \text{abstraction} \\
     & |\enspace M~N & \text{application}\\
@@ -43,7 +43,7 @@ Another two language concepts are more interesting: First and foremost, the supp
     & |\enspace \{ \ell_1, \dots, \ell_n \} & \text{finite label set} \\
     & |\enspace \Sigma(x:A)B & \text{pair type} \\
     & |\enspace \Pi(x:A)B & \text{function type} \\
-    & |\enspace \case M \{\overline{\ell : A_\ell}\} & \text{label type matching} \\
+    & |\enspace \case M \{\overline{\ell : A_\ell}^{\ell \in L} \} & \text{label type matching} \\
     & |\enspace \rec V~A~t.B & \text{recursor type}
 \end{align*}
 \caption{Types in LDLC}
@@ -56,8 +56,7 @@ Another two language concepts are more interesting: First and foremost, the supp
     & \enspace () \enspace|\enspace
       \ell \enspace|\enspace
       x \in \mathbb{R} \enspace
-     |\enspace \langle V, W \rangle \\
-    \rho ::= & \enspace \cdot \enspace | \enspace \rho, x = V & \text{environment}
+     |\enspace \langle V, W \rangle
 \end{align*}
 \caption{Values in LDLC}
 \label{fig:ldlc-values}
@@ -73,11 +72,11 @@ Predominantly, labels appear in context of \case terms. These may occur as expre
 
 \subsection{Recursor over Natural Numbers}
 
-In addition to label dependency, there is another construct used for dependency on natural numbers: $\rec V~M~x.f.N$
+In addition to label dependency, there is another construct used for modeling dependency on natural numbers: $\rec V~M~x.f.N$
 
 Value $V$ must be a natural number value which can also be written recursively using the constructors $Z$ (for zero) and $S(V)$ for the successor of $V$. An encoding for a natural number is given by $\overline{n} = S(\dots S(Z))$. When evaluating a recursor, there is a case differentiation by value $V$.
 
-If $V=Z$ the whole expression is reduced to $M$, discarding its latter term. Otherwise, for $V=S(V')$, the \rec expression is reduced to expression $N$ with the following two substitutions: variable $x$ in $N$ is substituted by $V'$, the precessor of $S(V')$; variable $f$ by $\rec V'~M~x.f.N$, the result of the ``previous'' evaluation of the recursor.
+If $V=Z$ the whole expression is reduced to $M$, discarding its latter term. Otherwise, for $V=S(V')$, the \rec expression is reduced to expression $N$ with the following two substitutions: variable $x$ in $N$ is substituted by $V'$, the predecessor of $S(V')$; variable $f$ by $\rec V'~M~x.f.N$, the result of the ``previous'' evaluation of the recursor.
 
 \begin{figure}
  \begin{align*}
@@ -91,13 +90,15 @@ If $V=Z$ the whole expression is reduced to $M$, discarding its latter term. Oth
 \end{figure}
 
 
-It is similar for type conversion of $\rec V~A~t.B$. For $V=Z$, the resulting type is simply $A$. As for $V=S(V')$, the resulting type is given by $B$ after substituting type identifier $t$ in $B$ with $\rec V'~A~t.B$. Both reductions are consisely listed in figure~\ref{fig:ldlc-rec-exp}.
+On the type level it is similar when evaluating a recursor type $\rec V~A~t.B$. For $V=Z$, the resulting type is simply $A$. As for $V=S(V')$, the resulting type is given by $B$ after substituting type identifier $t$ in $B$ with $\rec V'~A~t.B$. Both reductions are concisely listed in figure~\ref{fig:ldlc-rec-exp}.
 
 \subsection{Subtyping}
 
-We give an excerpt of relevant subtyping rules of LDLC in figure~\ref{fig:ldgv-subtyping}. For CCLDLC they gain additional relevance since they are necessary not only for type checking but now for type casts during runtime, too.
+Without subtyping, a type system lacks flexibility. Assuming a lambda expression $\lambda ( x: \Int ).M$, what will happen when applying an expression of type \textbf{Nat}? Obviously, there is a difference between natural numbers and integers. But at the same time, every natural number is also an integer. ($\mathbb{N} \subset \mathbb{Z}$) By formulating consistent rules---not necessarily involving subset relations---a type system will accept a wider range of types. Especially in object-oriented languages supporting inheritance this is practically a necessary feature.\footnote{A common example is class \emph{Dog} inheriting from class \emph{Animal}; then methods accepting arguments of type \emph{Animal} will also accept type \emph{Dog}.} Subtyping for dependent types entails some peculiarities that were  studied in various papers during the last three decades, e.g. by \cite{aspinall2001}.
 
-Since a label type is a set of labels we can use set comparisons for subtyping. If one label type $L$ is a subset of another label type $L'$, then $L$ is a subtype of $L'$. Thus, there is no $L$ that is a subtype of $\bot$. Subtyping in LDLC is closed under transitivity.
+In figure~\ref{fig:ldgv-subtyping} we give an excerpt of relevant subtyping rules of LDLC. Handling of function types (\textsc{A-Sub-Pi}) and pair types (\textsc{A-Sub-Sigma}) is of special relevance since they are composite types, thus they need specification on how to recursively apply subtyping to their component types. For CCLDLC these rules gain additional relevance since they are necessary not only for type checking but now for type casts during runtime, too.
+
+Since a label type is a set of labels we can use set comparisons for subtyping. If one label type $L$ is a subset of another label type $L'$, then $L$ is a subtype of $L'$. Thus, there is no $L$ that is a subtype of the empty set $\emptyset$ and equivalently of bottom type $\bot$. Subtyping in LDLC is closed under transitivity.
 
 \begin{figure}
 \begin{mathpar}
@@ -125,7 +126,7 @@ Since a label type is a set of labels we can use set comparisons for subtyping. 
 
 LDGV stands for ``Label Dependency'' and ``Gay \& Vasconcelos'', the authors of multiple papers about Session Types, e.g. \cite{gayvasconcelos2010}. In this work's context, it is the name of an interpreter for LDLC and its extension CCLDLC. It is written in the Haskell programming language.
 
-Its syntax is similar the calculus from the previous section. We give an excerpt in listing~\ref{lst:ldgv-expressions}. In general, keywords and structure are identical save for labels. To uniquely identify a label it needs to be a combination of alphanumeric characters, prefixed by an apostroph.
+Its syntax is similar the calculus from the previous section. We give an excerpt in listing~\ref{lst:ldgv-expressions}. In general, keywords and structure are identical save for labels. To uniquely identify and tokenize a label it needs to be a combination of alphanumeric characters, prefixed by an apostrophe.
 
 \begin{lstlisting}[float,language=ldgv,
   caption={Expressions in LDGV (excerpt) with expressions \texttt{M,N,P}, variable \texttt{x} and type \texttt{A}},
@@ -148,6 +149,8 @@ The syntax for types is given in listing~\ref{lst:ldgv-types}. Writing out funct
   label=lst:ldgv-types]
 Unit
 Int
+Nat
+Double
 String
 T             -- type identifier
 {'foo, 'bar}  -- label type
@@ -156,7 +159,7 @@ case M {'foo: A, 'bar: B}
 [x: A, B]     -- pair type
 \end{lstlisting}
 
-For an actual program there are statements, especially declarations. They create the global environment, binding expressions to variables and types to type identifiers\footnote{For type identifiers, the programmer has to supply a \emph{kind}. For breivity, we omit the introduction of kinds, mostly assuming \texttt{\textasciitilde un} is given.}. When running the interpreter on a given program, it outputs the evaluation result of the expression bound to variable \texttt{main}. Furthermore, there are type assertions. The full list of statements in given in listing~\ref{lst:ldgv-statements}.
+For an actual program there need to be statements, especially declarations. They create the global environment, binding expressions to variables and types to type identifiers\footnote{For type identifiers, the programmer has to supply a \emph{kind}. For brevity, we omit the introduction of kinds, generally assuming kind \texttt{\textasciitilde un} in declarations.}. When running the interpreter on a given program, it outputs the evaluation result of the expression bound to variable \texttt{main}. Furthermore, there are type assertions. The full list of statements in given in listing~\ref{lst:ldgv-statements}.
 
 \begin{lstlisting}[float,language=ldgv,
   caption={Statements in LDGV, with expression \texttt{M} and types \texttt{A,B}},

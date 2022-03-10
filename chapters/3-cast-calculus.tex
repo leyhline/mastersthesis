@@ -1,6 +1,6 @@
 \chapter{Cast Calculus}\label{chap:cast-calculus}
 
-The \emph{Cast Calculus Label Dependent Lambda Calculus} is an extension to regular LDLC as introduced in section~\ref{sec:ldlc}. It adds an explicit cast between two types, a dynamic type $\star$ as well as related language constructs. CCLDLC is but an intermediate representation between LDLC and a gradual typing extension GLDLC. With gradual typing, type casts involving the dynamic type are hidden and are handled internally. Here, translation to the cast calculus is necessary.
+The \emph{Cast Calculus Label Dependent Lambda Calculus} is an extension to regular LDLC as introduced in section~\ref{sec:ldlc}. It adds an explicit cast between two types, a dynamic type $\star$ as well as related language constructs. CCLDLC is but an intermediate representation between LDLC and a gradual typing extension GLDLC. With gradual typing, type casts involving the dynamic type are hidden and handled internally. In other words, a program written in GLDLC is internally converted to CCLDLC by making type casts explicit. The actual, cast reductions happens in the latter calculus. This work is solely about implementing the Cast Calculus without going into conversion from the Gradual Calculus.
 
 \section{Exptessions and Types}\label{sec:cc-expressions}
 
@@ -11,12 +11,12 @@ The \emph{Cast Calculus Label Dependent Lambda Calculus} is an extension to regu
  A ::= & \enspace \dots \enspace|\enspace
      \star \enspace|\enspace \bot \enspace|\enspace \top
 \end{align*}
-\caption[Extensions to LDLC for CCLDLC]{Extensions to LDLC for CCLDLC for expression $M$ and types $A, A', B, B'$.}
+\caption{CCLDLC  extensions for expression $M$ and types $A,  B$.}
 \label{fig:ccldlc-extensions}
 \end{figure}
 
-CCLDLC adds the cast and blame expressions as well as the dynamic type, top type and bottom type; see figure~\ref{fig:ccldlc-extensions}.
-The bottom type's single purpose is as type for the blame expression $(\blame : \bot)$. The top type is only used for unfolding the bottom type, evaluating $\bot$ to a function of any argument $\Pi(y:\top)\bot$, the \emph{smallest function type}. Every type $A$ is a subtype of $\top$ ($A \leq \top$) and $\bot$ is a subtype of every type $B$ ($\bot \leq B$). Hence, the smallest function type we just described contains functions which accept any argument, then always evaluating to \blame.
+CCLDLC adds expressions for cast and blame as well as the dynamic type, top type and bottom type; see figure~\ref{fig:ccldlc-extensions}.
+The bottom type's single purpose is as type for the blame expression $(\blame : \bot)$. The top type is only used for unfolding the bottom type, evaluating $\bot$ to a function of any argument $\Pi(y:\top)\bot$, the \emph{smallest function type}. Every type $A$ is a subtype of $\top$ ($A \leq \top$) and $\bot$ is a subtype of every type $B$ ($\bot \leq B$). Hence, the smallest function type we just described contains functions accepting any argument, then always evaluating to \blame.
 
 \section{Values}
 
@@ -33,15 +33,15 @@ The bottom type's single purpose is as type for the blame expression $(\blame : 
     & |\enspace
     \Pi(x:\star)\star \enspace|\enspace
     \Sigma(x:\star)\star \\
- \rho ::= & \enspace \cdot \enspace|\enspace \rho, x = V
+ \rho ::= & \enspace \cdot \enspace|\enspace \rho, x = V  \enspace|\enspace \rho,t = A
 \end{align*}
 \caption[Values $V$ and ground types $G$ in CCLDLC]{Values $V$ and ground types $G$ in CCLDLC with environment $\rho$ and variable $x$.}
 \label{fig:ccldlc-extensions-values}
 \end{figure}
 
-Values are extended in a less intuitive way, see figure~\ref{fig:ccldlc-extensions-values}. First, there is a \emph{dynamic wrapper} $V : G \Rightarrow \star$, representing a cast of value $V$ from a ground type $G$ to dynamic type $\star$. The whole cast term is a value itself. A ground type indicates an application of dynamic arguments to a top level type constructor as well as subtyping capabilities. Hence, label types are ground types, together with the unit type and corresponding singleton types. There are also ground types for function types $\Pi$ where argument and return type are unknown and for pair types $\Sigma$ with unknown component types.\footnote{Here, an ``unknown type'' means unknown before runtime, thus we use the dynamic type $\star$.}
+Values are extended in a less intuitive way, see figure~\ref{fig:ccldlc-extensions-values}. First, there is a \emph{dynamic wrapper} $V : G \Rightarrow \star$, representing a cast of value $V$ from a ground type $G$ to dynamic type $\star$. The whole cast term is a value itself. A ground type indicates an application of dynamic arguments to a top level type constructor as well as subtyping capabilities. Hence, label types are ground types, together with the unit type and corresponding singleton types. There are also ground types for function types where argument and return type are unknown $(\Pi(x:\star)\star)$ and for pair types with unknown component types $(\Sigma(x:\star)\star)$. Here, ``unknown type'' means unknown before runtime, thus we use the dynamic type $\star$.
 
-Next, a function closure where the evaluation environment $\rho$ is explicitly part of the value.
+Next, a function closure where the evaluation environment $\rho$ is explicitly part of the value. Environment $\rho$ is an ordered mapping of variable names to values. It is necessary for substitutions in expressions with bound variables on evaluation. Providing the environment as part of a function value implies deferred evaluation. Instead of strictly substituting variables in the function's body, full evaluation is delayed by supplying $\rho$ for looking up values when further evaluation is necessary. In CCLDLC, we simultaneously use $\rho$ for mapping type identifiers to types for similar reasons in context of cast reductions. This is possible because in the language's syntax variables and type identifiers necessarily have different names: variables starting with lowercase, type identifiers with an uppercase latter.
 
 And finally a function type cast for value $V$ of a specific function type to another one. This is necessary for reducing function casts and is shown in greater detail when describing the implementation.
 
@@ -120,7 +120,7 @@ In figure~\ref{fig:ccldlc-extensions}, the cast expression $(M : A \Rightarrow B
 \vspace{4ex}\hrule
 
 \renewcommand{\mkcitation}[1]{\\--- #1}
-\begin{displayquote}[\cite{peytonjones1987the}]
+\begin{displayquote}[\cite{peytonjones1987the},~p.\,199]
 A lambda expression is in \emph{head normal form} (HNF) if and only if it is of the form
 \begin{equation*}
 \lambda x_1 . \lambda x_2 \dots \lambda x_n . (v~M_1~M_2~\dots~M_m)

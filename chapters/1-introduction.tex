@@ -1,16 +1,18 @@
 \chapter{Introduction}\label{chap:introduction}
 
-In programming, dependent types are the next step in the unification of language constructs. Not only values and functions but also types are first class constructs. This goes along with practical advantages: Types may now depend on values, allowing for more precise typing, consequently better correctness guarantees and more expressive power when describing programs. Nevertheless, such power comes at a cost: As the difference between proof and program grows hazy, typechecking and program interpretation will face similar problems. The former becomes more costly and might be subject to the halting problem.
+In programming, dependent types are the next step in the unification of language constructs. Not only values and functions but also types are first class constructs. When declaring types, it is now possible to depend on values, e.g. in addition to type \emph{Integer}, one may define a type $(Integer~n)$, only accepting a value $x \in (Integer~n)$ when $x \leq n$.
+
+This goes along with practical advantages: more precise typing, consequently better correctness guarantees and more expressive power when describing programs. Nevertheless, such power comes at a cost: As the difference between proof and program grows hazy, type checking will face similar problems as program execution. The additional complexity of fully dependent types implies \emph{Turing completeness}. Hence, type checking will be subject to the \emph{halting problem}.
 
 \section{Label Dependent Types}
 
-Over the years, different approaches to dependent types surfaced. This work is bases on a subset of ``Label Dependent Session Types'' by \cite{thiemann2019}. Ignoring session types, we focus on the \emph{Label Dependent Lambda Calculus} (LDLC), extending it during this work. In general, types in LDLC refer to finite sets of label values. For example, it is easy to define type \textbf{Bool} with two labels representing \emph{True} and \emph{False} respectively:
+Over the years, different approaches to dependent types surfaced, mitigating such disadvantages. This work is bases on a subset of ``Label Dependent Session Types'' by \cite{thiemann2019}. Ignoring session types, we focus on the \emph{Label Dependent Lambda Calculus} (LDLC) it introduces, extending it during this thesis. In general, types in LDLC refer to finite sets of labels. For example, it is easy to define type \textbf{Bool} with two labels representing \emph{True} and \emph{False} respectively:
 
 \begin{equation}\label{eqn:bool}
-\Bool    := \{\ell_{True}, \ell_{False}\}
+\Bool    := \{\ell_{T}, \ell_{F}\}
 \end{equation}
 
-Elimination is done using a \textbf{case} construct, matching labels with expressions. In equation~\ref{eqn:ldlc}, the type of variable $y$ depends on the boolean $x$. This quickly results in unwieldy type annotations.
+Elimination is done using a \textbf{case} construct, matching labels with expressions or types. In equation~\ref{eqn:ldlc}, a function accepting two arguments $x$ and $y$ is given. While $x$ is of type \textbf{Bool}, $y$ depends on the value of $x$, hence $y$ may have type \textbf{Int} or type \textbf{Bool}. The same holds for the function's body as seen in the whole function's type annotation, given as $\Pi$-type. This quickly results in unwieldy type annotations.
 
 \begin{equation}\label{eqn:ldlc}
 \begin{split}
@@ -23,25 +25,25 @@ Elimination is done using a \textbf{case} construct, matching labels with expres
 \end{split}
 \end{equation}
 
-Label-dependency has many advantages. It is less complex than full value-dependency. The compiler has more options to check type safety, resulting in a more reliable program. Furthermore, types can serve as a machine-readable and machine-verifiable documentation since they give hints about the workings of the code.
+Label-dependency has various advantages. It is less complex than full value-dependency. The compiler has more options to check type safety, resulting in a more reliable program. Furthermore, types can serve as a machine-readable and machine-verifiable documentation since they give hints about the workings of the code.
 As a disadvantage, the code above is quite verbose. Adding all these type annotations can be cumbersome for a programmer, especially when still exploring a given task and trying out different approaches.
 
 \section{Gradual Typing}
 
-\emph{Gradual Typing} mitigates this problem since it allows to mix static and dynamic typing. In their paper, \cite{fu2021} propose an extension, the \emph{Gradual Label Dependent Lambda Calculus} (GLDLC), introducing the dynamic type $\star$. Annotating terms with $\star$ results in type checking at runtime, still preserving the guarantees of statically typed code at its boundaries. One possibility for rewriting equation~\ref{eqn:ldlc} is:
+\emph{Gradual Typing} mitigates this problem since it allows mixing static and dynamic typing. In their paper, \cite{fu2021} propose an extension, the \emph{Gradual Label Dependent Lambda Calculus} (GLDLC), introducing the dynamic type $\star$. Annotating terms with $\star$ results in type checking at runtime, still preserving the guarantees of statically typed code at its boundaries. One possibility for rewriting equation~\ref{eqn:ldlc} is by replacing the \case construct describing the type of variable $y$ by dynamic type $\star$.
 
 \begin{equation}\label{eqn:gldlc}
 \begin{split}
 &\lambda (x: \Bool)
-. \lambda (y: \ast)
+. \lambda (y: \star)
 . \case x \{\ell_T: 17+y,\ell_F: \notf y\} \\
 : & \Pi(x : \Bool)
-. \Pi (y: \ast)
+. \Pi (y: \star)
 . \case x \{\ell_T: \Int, \ell_F: \Bool \}
 \end{split}
 \end{equation}
 
-The original paper list more advantages and applications of GLDLC, whereas this work focuses on implementation aspects. Therefore, the methods used for evaluating type $\star$ are of interest, which leads us to an intermediate representation, describing the cast from arbitrary type $A$ to $\star$ and from $\star$ to an arbitrary type $B$. These cast are part of the \emph{Cast Calculus Label Dependent Lambda Calculus} (CCLDLC). The \emph{Cast Calculus} adds an explicit type cast expression ``$x : A \Rightarrow B$'', casting the value of $x$ of type $A$ to type $B$. Naturally, type $\star$ can occur on both sides. Rewriting equation~\ref{eqn:gldlc} results in a more verbose and more explicit formulation:
+The original paper lists more advantages and applications of GLDLC, whereas this work focuses on implementation aspects. Therefore, the methods used for evaluating type $\star$ are of interest. This leads to an intermediate representation, describing the cast from arbitrary type $A$ to $\star$ and from $\star$ to an arbitrary type $B$. These cast are part of the \emph{Cast Calculus Label Dependent Lambda Calculus} (CCLDLC). The \emph{Cast Calculus} adds an explicit type cast expression ``$M : A \Rightarrow B$'', casting the value of evaluated expression $M$ of type $A$ to type $B$. Naturally, type $\star$ can occur on both sides. Rewriting equation~\ref{eqn:gldlc} results in a more verbose and more explicit formulation.
 
 \begin{equation}\label{eqn:ccldlc}
 \begin{split}
@@ -52,19 +54,21 @@ The original paper list more advantages and applications of GLDLC, whereas this 
 \end{split}
 \end{equation}
 
+In CCLDLC, a cast must always happen in such an explicit manner. The same is true for function application. When passing an expression for variable $y$, there must be an explicit cast to the dynamic type, e.g. $(\ell_F : \Bool \Rightarrow \star)$.
+
 We contribute an implementation of CCLDLC by extending LDGV, an existing interpreter for Label Dependent Session Types in the Haskell programming language.
 \\
 The full source code is available at \url{https://github.com/leyhline/ldgv/}.
 
-First, we describe the \emph{Label Dependent Lambda Calculus}, its rules and its compiler since this provides the foundation for our extensions. Next, there in an outline of the program's structure with respect to changes we made. Then, we formally describe the rules for CCLDLC. Finally, we document the implementation in a detailed manner.
+First, we describe the \emph{Label Dependent Lambda Calculus}, its rules and its interpreter LDGV since these provide the foundation for our extension. Next, we formally describe the rules of CCLDLC including a section on the current implementation's structure and a top-level overview of necessary adjustments. Finally, we document the implementation in a detailed manner.
 
 \section{Notation}
 
 Since this work is about building an implementation, there needs to be a distinction between concepts and code. Often, both will be quite similar. Concepts like formulas and rules are conveyed using mathematical notation. This is not necessarily identical to the actual syntax of LDGV.
 
 \begin{align*}
- x &:= \ell_{foo} & \text{variable definition} \\
- A &:= \{ \ell_{foo} \} & \text{type definition}
+ x &:= \ell_T & \text{variable definition} \\
+ A &:= \{ \ell_T \} & \text{type definition}
 \end{align*}
 
 Then again, actual code precisely reflects the capabilities of LDGV. One can feed it verbatim to the interpreter. It is written in a monospaced font.
