@@ -1,6 +1,6 @@
 \chapter{Implementation}\label{chap:implementation}
 
-The actual implementation uses the Haskell programming language and related tools. There are adjustments in all three module groups as classified in chapter~\ref{chap:program-structure}. Furthermore, we extend the data types in the fundamental \texttt{Syntax} module with additional expressions and types from section~\ref{sec:cc-expressions}.
+The actual implementation uses the Haskell programming language and related tools. There are adjustments in all three module groups as classified in section~\ref{sec:program-structure}. Furthermore, we extend the data types in the fundamental \texttt{Syntax} module with additional expressions and types from section~\ref{sec:cc-expressions}, thus making these terms known to the remaining program.
 
 \begin{lstlisting}[caption=Extensions to \texttt{Syntax.hs}]
 data Exp = ...
@@ -13,7 +13,7 @@ data Type = ...
 
 \section{Parsing}
 
-As usual, there is a tokenization step before the actual parsing, turning a string into tokens. For this purpose, we use the tool \emph{Alex: A lexical analyser generator for Haskell}\footnote{\url{https://www.haskell.org/alex/}}, maintained by Simon Marlow, as it nicely integrates with Haskell. We add tokens for the bottom type and the the double arrow used in cast expressions. In our implementation, we use \texttt{*} as identifier for the dynamic type. There already exists a corresponding token since it was used for multiplication in the base language.
+As usual, there is a tokenization step before the actual parsing, turning a string into tokens. For this purpose, we use the tool \emph{Alex: A lexical analyser generator for Haskell}\footnote{\url{https://www.haskell.org/alex/}}, maintained by Simon Marlow, as it nicely integrates with Haskell. We add tokens for the bottom type and the double arrow used in cast expressions. In our implementation, we use \texttt{*} as identifier for the dynamic type. There already exists a corresponding token since it was used for multiplication in the base language.
 
 \begin{lstlisting}[float,
   caption=Additional tokens (\texttt{Parsing/Tokens.x})]
@@ -94,9 +94,11 @@ The built-in functions \texttt{fst} and \texttt{snd} simply return the dynamic t
 
 \subsection{Subtyping}
 
-Subtyping regarding the dynamic type happens in the context of \case, used for eliminating label types. For a term $\case (x:\star \Rightarrow A) \{ \overline{\ell : N_\ell} \}$ we check if type $A$ is a subtype of $N_\ell$. Both are sets of labels, hence $A \leq N_\ell$ if $A \subseteq N_\ell$.
+Subtyping regarding the dynamic type happens in the context of \case, used for eliminating label types. For dynamic type $\star$ we need to unfold such \case constructs by recursively checking that each type in its label matching unfolds to $\star$. For this purpose, we extend the existing \texttt{unfold} function as seen in listing~\ref{lst:ccldlc-subtyping-dyn}. If this succeeds, then type checking accepts the outcome, deferring the actual cast to runtime.
 
-\begin{lstlisting}[caption=Subtyping in case terms (\texttt{TCSubtyping.hs})]
+\begin{lstlisting}[float,
+	caption=Unfolding to $\star$ in case terms (\texttt{TCSubtyping.hs}),
+	label=lst:ccldlc-subtyping-dyn]
 unfold :: TEnv -> Type -> TCM Type
 unfold tenv (TCase val@(Var x) cases) = do
   tyx <- varlookupUnfolding x tenv
@@ -104,45 +106,67 @@ unfold tenv (TCase val@(Var x) cases) = do
       f (lab, labtyp) = unfold
         (("*unfold*", TEqn val (Lit $ LLab lab) tyx) : tenv)
         labtyp
-  case tyx of
+  results <- case tyx of
     TLab {} -> -- ...
     TDyn -> mapM f cases
-  where f ::
+  -- if all results are TDyn, return TDyn
 \end{lstlisting}
 
-Furthermore, we have to consider casts in context of \case types. Given a type $\case (M : A \Rightarrow B)~\{\overline{\ell : A_\ell}\}$ we need to implement subtyping in relation to other types. We use the following rule \textsc{Sub-Case-Cast}:
-
-\begin{equation*}
-\inferrule[Sub-Case-Cast]
-  {\Gamma \vdash D \leq L \and L \subseteq L'}
-  {\Gamma,x:D,\Delta \vdash
-    \case(x:D \Rightarrow L) \{\overline{\ell : A_\ell}\}
-    \leq
-    \case (x:D \Rightarrow L') \{\overline{\ell : A'_\ell}\} }
-\end{equation*}
-
-The corresponding code is given as follows. Both type arguments need to be \case types, and the type casts have to target label types.
-
-\begin{lstlisting}[caption=Subtyping for casts in case terms (\texttt{TCSubtyping.hs})]
+\begin{lstlisting}[float,
+	caption=Subtyping for casts in case terms (\texttt{TCSubtyping.hs}),
+	label=lst:ccldgv-cast-subtyping]
 subtype' :: TEnv -> Type -> Type -> TCM Kind
-subtype'
-  tenv
-  (TCase (Cast e  t1  t2@(TLab  ls))  cases)
-  (TCase (Cast e' t1' t2'@(TLab ls')) cases') =
-    let isSubset = fromList ls `isSubsetOf` fromList ls' in
-    if not isSubset
-    then TC.mfail "Label subtyping failure"
-    else do
-      subtype' tenv t1 t2
+subtype' tenv
+  (TCase (Cast (Var x) (TLab ls1) (TLab ls2)) cases)
+  tyy2 = do
+    let ls' = filter (`elem` ls1) ls2
+        casetypes = map (\l ->
+          fromMaybe TBot (l `lookup` cases)) ls'
+        subtypeCast l cty =
+          let t = if l `elem` ls1 then TLab [l] else TBot
+              tenv' = (x,(Many,t)) : tenv
+          in subtype tenv' cty tyy2
+    results <- zipWithM subtypeCast ls' casetypes
+    return $ foldr1 klub results
 \end{lstlisting}
 
+Furthermore, we have to consider casts in context of \case types. Given a type $\case (x : D \Rightarrow L)~\{\overline{\ell : A_\ell}^{\ell \in L}\}$ with variable $x$ and label types $D,L$ we need to implement subtyping in relation to other types. The following rules describe these relations when checking if \case is a subtype or supertype.
+
+\begin{gather*}
+\inferrule[A-Sub-Case-CL]
+  {L' = \{ \ell \in L ~|~ \Gamma \Vdash \{\ell\} \leq D \}
+  	\\
+	(\forall \ell \in L') \and
+	D_\ell = cast(\{\ell\} \Rightarrow D) \and
+	\Gamma, x : D_\ell, \Delta \Vdash A_\ell \leq B
+  }
+  {\Gamma,x:D,\Delta \Vdash
+    \case(x:D \Rightarrow L) \{\overline{\ell : A_\ell}^{\ell \in L}\} \leq B }
+\\
+\inferrule[A-Sub-Case-CR]
+  {L' = \{ \ell \in L ~|~ \Gamma \Vdash \{\ell\} \leq D \}
+	\\
+	(\forall \ell \in L') \and
+	D_\ell = cast(\{\ell\} \Rightarrow D) \and
+	\Gamma, x : D_\ell, \Delta \Vdash A \leq B_\ell
+}
+{\Gamma,x:D,\Delta \Vdash
+	A \leq \case(x:D \Rightarrow L) \{\overline{\ell : B_\ell}^{\ell \in L}\} }
+\\
+cast(\{\ell\} \Rightarrow B) =  \begin{cases}
+	\{ \ell \} & \text{if } (V:A \Rightarrow B) \Downarrow W \\
+	\bot & \text{if } (V:A \Rightarrow B) \Downarrow \blame
+\end{cases}
+\end{gather*}
+
+These are simplified rules by using the assumption that both types of the cast expression are label types. This implies that the singleton type of $\ell$ is $\{\ell\}$ and that subtyping between label types is the same as the subset operation. We present the implementation of \textsc{A-Sub-Case-CL} in listing~\ref{lst:ccldgv-cast-subtyping}. Rule \textsc{A-Sub-Case-CR} is almost identical, merely renaming some arguments.
 
 \section{Interpreter}
 
-In basic LDGV, types are not relevant in context of evaluation. The interpreter works on the assumption that prior typechecking did succeed. In our extension, cast expressions are always handled at runtime, even if both types in a cast $M : A \Rightarrow B$ are not dynamic ($A \neq \star, B \neq \star$).
+In basic LDGV, types are not relevant in context of evaluation. The interpreter works on the assumption that prior type checking did succeed. In our extension, cast expressions are always handled at runtime, even if both types in a cast $M : A \Rightarrow B$ are not dynamic ($A \neq \star, B \neq \star$).
 For correct handling of the dynamic type and type reduction of cast expressions we introduce new data types and extend the existing data type for values. Finally, we implement the rules of section~\ref{sec:ccldlc-inference-rules}.
 
-In chapter~\ref{chap:cast-calculus} we also listed rules for handling singleton types $\Single\{A\}$ as given in the original paper. The implementation does not support explicit singleton types in its grammer. Therefore, from this point onwards, singleton types will not be considered.
+In chapter~\ref{chap:cast-calculus} we also listed rules for handling singleton types $\Single\{A\}$ as given in the original paper. The implementation does not support explicit singleton types in its grammar. Therefore, from this point onwards, singleton types will not be considered.
 
 \subsection{Type Passing}
 
@@ -156,8 +180,6 @@ data NFType
   | NFDyn
   | NFFunc FuncType
   | NFPair FuncType
-  | NFInt
-  | NFDouble
   | NFGType GType
 
 data FuncType = FuncType PEnv String Type Type
@@ -173,6 +195,10 @@ data GType
   | GLabel LabelType
   | GFunc String
   | GPair String
+  | GNat
+  | GInt
+  | GDouble
+  | GString
 
 type Label = String
 type LabelType = Set Label
@@ -200,6 +226,10 @@ instance Subtypeable GType where
     ls1 `Set.isSubsetOf` ls2
   isSubtypeOf (GFunc _) (GFunc _) = True
   isSubtypeOf (GPair _) (GPair _) = True
+  isSubtypeOf GNat GNat = True
+  isSubtypeOf GInt GInt = True
+  isSubtypeOf GDouble GDouble = True
+  isSubtypeOf GString GString = True
   isSubtypeOf _ _ = False
 
 instance Subtypeable NFType where
@@ -209,7 +239,7 @@ instance Subtypeable NFType where
   isSubtypeOf _ _ = False
 \end{lstlisting}
 
-We also extend the value type according to section~\ref{sec:cc-expressions}. We add function closures, including environment $\rho$, variable name and the expression in the function's body. Furthermore function casts and the dynamic wrapper $V : G \Rightarrow \star$ (see listing~\ref{lst:ccldlc-value-type}).
+We also extend the value type according to section~\ref{sec:cc-expressions}. We add function closures, including environment $\rho$, variable name and the expression in the function's body. Furthermore function casts and the dynamic wrapper $(V : G \Rightarrow \star)$ (see listing~\ref{lst:ccldlc-value-type}).
 
 \begin{lstlisting}[float,
   label=lst:ccldlc-value-type,
@@ -228,8 +258,10 @@ We use these new and extended data types to handle CCLDLC's types during the int
 evalType :: Type -> InterpretM NFType
 evalType = \case
   TUnit   -> return $ NFGType GUnit
-  TInt    -> return NFInt
-  TDouble -> return NFDouble
+  TNat    -> return $ NFGType GNat
+  TInt    -> return $ NFGType GInt
+  TDouble -> return $ NFGType GDouble
+  TString -> return $ NFGType GString
   TBot    -> return NFBot
   TDyn    -> return NFDyn
   TLab ls -> return $ NFGType $ GLabel ls
@@ -305,7 +337,7 @@ matchType = \case
 
 The remaining rules necessary for a full implementation of CCLDLC , except these for function and pair handling, are handled by the \texttt{reduceCast'} function we describe in the next paragraphs.
 
-Rules \textsc{Cast-Dyn-Dyn} and \textsc{Factor-Left} are similar such that they presume a cast \emph{to} dynamic type $\star$. Hence, we implement them together as in listing~\ref{lst:cast-dyn-dyn-factor-left}. Currently, the only subtypes of $\star$ are $\star$ itself and bottom type $\bot$ which is expressed using typeclass \texttt{Subtypeable} (listing~\ref{lst:subtypeable}). If the given type is no subtype of $\star$ we apply \textsc{Factor-Left} as is. After type matching $A^\circ \rhd G$ we do not implement the check that $A^\circ \neq G$. Given the function's arguments this implies a cast $V : G \Rightarrow \star$ that would have been handled by an earlier call to \texttt{castIsValue}.
+Rules \textsc{Cast-Dyn-Dyn} and \textsc{Factor-Left} are similar such that they presume a cast \emph{to} dynamic type $\star$. Hence, we implement them together as in listing~\ref{lst:cast-dyn-dyn-factor-left}. Currently, the only subtypes of $\star$ are $\star$ itself and bottom type $\bot$ which is expressed using typeclass \texttt{Subtypeable} (listing~\ref{lst:subtypeable}). If the given type is no subtype of $\star$ we apply \textsc{Factor-Left} as is. After type matching $A^\circ \rhd G$ we do not implement the check that $A^\circ \neq G$. Given the function's arguments this would imply a cast $V : G \Rightarrow \star$ that would have been handled by an earlier call to \texttt{castIsValue}.
 
 \begin{lstlisting}[float,
   label=lst:cast-dyn-dyn-factor-left,
@@ -357,7 +389,7 @@ reduceCast' v (NFGType gt1) (NFGType gt2) =
   if gt1 `isSubtypeOf` gt2 then Just v else Nothing
 \end{lstlisting}
 
-The last two are about type reductions in context of pairs and functions. First, we implemnt \textsc{Cast-Pair}. For this purpose we make adjustments to the \texttt{eval} function in listing~\ref{lst:cast-reduce} which returns monad \texttt{InterpretM}. This is necessary since we need to consider the expression's environment $\rho$. The type annotation of function \texttt{reduceCast} does not accept arguments capable of representing the environment. After evaluating to $V : A^\circ \Rightarrow B^\circ$ we catch pair values by pattern matching and pass the cast term to function \texttt{reducePairCast} as seen in listing~\ref{lst:pair-cast}. Again, we need a helper function to manage overlapping types. With \texttt{toNFPair} we interrept ground types, using type constructor \texttt{NFPair} instead of \texttt{NFGType}. This is necessary since \texttt{reducePairCast} only matches the former. Alternatively, one might match against all combinations of both type constructors as in function \texttt{castIsValue} from listing~\ref{lst:cast-is-value}. The actual cast reduction consists of simply reducing both of its components. When reducing the second component, we extend the respective environments with the first components' values (\texttt{xEnv}).
+The last two are about type reductions in context of pairs and functions. First, we implemnt \textsc{Cast-Pair}. For this purpose we make adjustments to the \texttt{eval} function in listing~\ref{lst:cast-reduce} which returns monad \texttt{InterpretM}. This is necessary since we need to consider the expression's environment $\rho$. The type annotation of function \texttt{reduceCast} does not accept arguments capable of representing the environment. After evaluating to $V : A^\circ \Rightarrow B^\circ$ we catch pair values by pattern matching and pass the cast term to function \texttt{reducePairCast} as seen in listing~\ref{lst:pair-cast}. Again, we need a helper function to manage overlapping types. With \texttt{toNFPair} we intercept ground types, using type constructor \texttt{NFPair} instead of \texttt{NFGType}. This is necessary since \texttt{reducePairCast} only matches the former. Alternatively, one might match against all combinations of both type constructors as in function \texttt{castIsValue} from listing~\ref{lst:cast-is-value}. The actual cast reduction consists of simply reducing both of its components. When reducing the second component, we extend the respective environments with the first components' values (\texttt{xEnv}).
 
 \begin{lstlisting}[float,
   caption=Rule \textsc{Cast-Pair} (\texttt{Interpreter.hs}),
@@ -443,7 +475,7 @@ val f = fn(x: Bool) fn(y: *) case x {
           'T: (y: * => (a:Bool) -> (b:Bool) -> Bool) x x}
 \end{lstlisting}
 
-By applying label $\ell_F$ (representing boolean \emph{False}) and boolean function $\notf = \lambda (x:\Bool) \case x \{ \ell_T: \ell_F, \ell_F: \ell_T\}$ we evaluate the whole expression to value $\ell_T$. This is presented in a step-by-step manner, starting with an application and an explicit dynamic cast for function \notf. For brevity, we omit the environment $\rho$ inside equations.
+By applying label $\ell_F$ (representing boolean \emph{False}) and boolean function $\notf = \lambda (x:\Bool) \case x \{ \ell_T: \ell_F, \ell_F: \ell_T\}$ we evaluate the whole expression to value $\ell_T$. This is presented in a step-by-step manner, starting with an application and an explicit dynamic cast of function not. For brevity, we omit the environment $\rho$ inside equations.
 
 \begin{align}
 & f~\ell_F~~(\notf : (a:\Bool) \rightarrow \Bool \Rightarrow \star) \\
@@ -490,4 +522,4 @@ Finally, we evaluate the full expression in the example function's false branch.
 
 In conclusion, even the reductions for a relatively simple function cast are quite involved, requiring many rules and operations. Note that when full \emph{gradual typing} is implemented, the explicit casts are not written out by the programmer.
 
-\section{New Natural Recursor}
+\section{Recursor Expression}

@@ -7,7 +7,7 @@ Before diving into the \emph{Cast Calculus} we introduce the foundation, the \em
 The LDLC is the foundation of this work. Its main aspect is the gain of additional simplicity in context of session types. The introduction of labels results in decoupled operations when sending and receiving functions, hence being more lightweight regarding its semantics. See \cite{thiemann2019}. However, session types are not of special relevance when introducing casts. For brevity, we will omit the handling of session types, focusing on labels instead.
 
 A list of language constructs is found in figures~\ref{fig:ldlc-expressions}~to~\ref{fig:ldlc-values}. There is support for common functionality like variables, expressions and types,\footnote{
-Variable names for expressions have to start with a lowercase letter, e.g. \texttt{\valb x = ()}; for types its an uppercase letter: \texttt{\typeb X : Unit}.} functions and pairs as well as numerical operations and values. In general---as implied by its name---it is based on \emph{Simply Typed Lambda Calculus} (details can be found in most introductory literature, e.g. \cite{pierce2002}). As in many functional languages, there is also the unit type $\Unit$ encompassing its only value ``$()$''.
+Variable names for expressions have to start with a lowercase letter, e.g. \texttt{\valb x = ()}; for types its an uppercase letter: \texttt{\typeb X : Unit}.} functions and pairs as well as numerical operations and values. In general---as implied by its name---it is based on \emph{Simply Typed Lambda Calculus} (details can be found in most introductory literature, e.g. \cite{pierce2002}). As in many functional languages, there is also the unit type $\Unit$ encompassing its only value ``$()$''. 
 
 Another two language concepts are more interesting: First and foremost, the support for labels $\ell$. Labels can have arbitrary names. A mathematical set of distinct labels forms a type. Moreover, there is a recursor over natural numbers $\rec V~M~x.f.N$. This allows for recursively constructing expressions by using base expression $M$ for $n=0$ and otherwise expression $N$ with appropriate substitutions for $x$ and $f$.
 
@@ -126,7 +126,7 @@ Since a label type is a set of labels we can use set comparisons for subtyping. 
 
 LDGV stands for ``Label Dependency'' and ``Gay \& Vasconcelos'', the authors of multiple papers about Session Types, e.g. \cite{gayvasconcelos2010}. In this work's context, it is the name of an interpreter for LDLC and its extension CCLDLC. It is written in the Haskell programming language.
 
-Its syntax is similar the calculus from the previous section. We give an excerpt in listing~\ref{lst:ldgv-expressions}. In general, keywords and structure are identical save for labels. To uniquely identify and tokenize a label it needs to be a combination of alphanumeric characters, prefixed by an apostrophe.
+Its syntax is similar the calculus from the previous section. We give an excerpt in listing~\ref{lst:ldgv-expressions}. In general, keywords and structure are identical save for labels. To uniquely identify and tokenize a label it needs to be a combination of alphanumeric characters, prefixed by an apostrophe. Furthermore, as opposed to the underlying LDLC, there is basic string support. A combination of characters enclosed by quotation marks \texttt{"} is read as string expression.
 
 \begin{lstlisting}[float,language=ldgv,
   caption={Expressions in LDGV (excerpt) with expressions \texttt{M,N,P}, variable \texttt{x} and type \texttt{A}},
