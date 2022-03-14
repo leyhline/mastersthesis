@@ -115,26 +115,31 @@ unfold tenv (TCase val@(Var x) cases) = do
 \begin{lstlisting}[float,
 	caption=Subtyping for casts in case terms (\texttt{TCSubtyping.hs}),
 	label=lst:ccldgv-cast-subtyping]
-subtype' :: TEnv -> Type -> Type -> TCM Kind
 subtype' tenv
-  (TCase (Cast (Var x) (TLab ls1) (TLab ls2)) cases)
-  tyy2 = do
-    let ls' = filter (`elem` ls1) ls2
-        casetypes = map (\l ->
-          fromMaybe TBot (l `lookup` cases)) ls'
-        subtypeCast l cty =
-          let t = if l `elem` ls1 then TLab [l] else TBot
-              tenv' = (x,(Many,t)) : tenv
-          in subtype tenv' cty tyy2
-    results <- zipWithM subtypeCast ls' casetypes
-    return $ foldr1 klub results
+  (TCase (Cast (Var x) t1 (TLab ls2)) cases)
+  tyy2 =
+    case lookup x tenv of
+      Just (_,TLab [l]) -> do
+        t <- lablookup l cases
+        subtype tenv t tyy2
+      _ -> do  -- A-Sub-Case-CL
+        let ls' = case t1 of
+              TDyn    -> ls2
+              TLab ls -> filter (`elem` ls) ls2
+              _       -> []
+            subtypeCast l = do
+              let tenv' = (x,(Many,TLab [l])) : tenv
+              cty <- lablookup l cases
+              subtype tenv' cty tyy2
+        results <- mapM subtypeCast ls'
+        return $ foldr1 klub results
 \end{lstlisting}
 
-Furthermore, we have to consider casts in context of \case types. Given a type $\case (x : D \Rightarrow L)~\{\overline{\ell : A_\ell}^{\ell \in L}\}$ with variable $x$ and label types $D,L$ we need to implement subtyping in relation to other types. The following rules describe these relations when checking if \case is a subtype or supertype.
+Furthermore, we have to consider casts in context of \case types. Given a type $\case (x : D \Rightarrow L)~\{\overline{\ell : A_\ell}^{\ell \in L}\}$ with variable $x$ and label type $L$ we need to implement subtyping in relation to other types. The following rules describe these relations when checking if \case is a subtype or supertype.
 
 \begin{gather*}
 \inferrule[A-Sub-Case-CL]
-  {L' = \{ \ell \in L ~|~ \Gamma \Vdash \{\ell\} \leq D \}
+  {L' = \{ \ell \in L ~|~ \Gamma \Vdash_G \{\ell\} \leq D \}
   	\\
 	(\forall \ell \in L') \and
 	D_\ell = cast(\{\ell\} \Rightarrow D) \and
@@ -144,7 +149,7 @@ Furthermore, we have to consider casts in context of \case types. Given a type $
     \case(x:D \Rightarrow L) \{\overline{\ell : A_\ell}^{\ell \in L}\} \leq B }
 \\
 \inferrule[A-Sub-Case-CR]
-  {L' = \{ \ell \in L ~|~ \Gamma \Vdash \{\ell\} \leq D \}
+  {L' = \{ \ell \in L ~|~ \Gamma \Vdash_G \{\ell\} \leq D \}
 	\\
 	(\forall \ell \in L') \and
 	D_\ell = cast(\{\ell\} \Rightarrow D) \and
@@ -159,7 +164,9 @@ cast(\{\ell\} \Rightarrow B) =  \begin{cases}
 \end{cases}
 \end{gather*}
 
-These are simplified rules by using the assumption that both types of the cast expression are label types. This implies that the singleton type of $\ell$ is $\{\ell\}$ and that subtyping between label types is the same as the subset operation. We present the implementation of \textsc{A-Sub-Case-CL} in listing~\ref{lst:ccldgv-cast-subtyping}. Rule \textsc{A-Sub-Case-CR} is almost identical, merely renaming some arguments.
+When implementing these rules, we assume that type $D$ is either a label type or the dynamic type. This is because in \emph{Gradual LDLC}---as indicated by ``$\Vdash_G$''---there are subtyping rules for these cases. For label type $L$ we can establish subtyping if $L \subseteq D$ and for dynamic type $D=\star$ every type $A$ is a subtype of $D$. Function \emph{cast} checks if a type cast is possible, returning a singleton type on success. Since a successful subtyping check for $\{\ell\} \leq D$ already indicates a successful cast $\{\ell \Rightarrow D\}$ we did omit an explicit implementation of the \emph{cast} function.
+
+Furthermore, we implement additional logic regarding these rules: If typing environment $\Gamma$ already contains a binding to a singleton label $x : \{\ell\}$ this is utilized for resolving the \case type, directly checking subtyping $A_\ell \leq B$ or $A \leq B_\ell$ respectively. Otherwise, variable $x$ would serve no purpose. Deliberately ignoring its binding would render aforementioned logic redundant, hence the \case type would not be resolved. The corresponding code for \textsc{A-Sub-Case-CL} is given in listing~\ref{lst:ccldgv-cast-subtyping}. Rule \textsc{A-Sub-Case-CL} is nearly identical.
 
 \section{Interpreter}
 
@@ -523,3 +530,58 @@ Finally, we evaluate the full expression in the example function's false branch.
 In conclusion, even the reductions for a relatively simple function cast are quite involved, requiring many rules and operations. Note that when full \emph{gradual typing} is implemented, the explicit casts are not written out by the programmer.
 
 \section{Recursor Expression}
+
+The \emph{Cast Calculus} revolves around type casts and the dynamic type. Until now, we did provide an exhaustive description of these newly introduced constructs, its rules and an implementation. In the same breath we will extend the natural recursor and prepare its integration into the \emph{Cast Calculus}.
+
+The current implementation of $\rec V~M~x.f.N$ is mostly as its description in section~\ref{sec:ldgv-recursor}. Its syntax is \texttt{rec f (x.es) ez} with variable names \texttt{f,z} and expressions \texttt{es,ez}. For recursively evaluating the expression a natural number is necessary. This is implemented by application. When applying a number \texttt{n} to a correct \rec expression $r$ evaluation yields a value: \texttt{r n} implements $\rec V~M~x.f.N$ for $V=n$.
+
+\begin{lstlisting}[float,
+	label=lst:rec-typeext,
+	caption=(\texttt{ProcessEnvironment.hs})]
+data Value = -- ...
+    | VRec PEnv String String Exp Exp
+\end{lstlisting}
+
+\begin{lstlisting}[float,
+	label=lst:rec-eval,
+	caption=(\texttt{Interpreter.hs})]
+eval Rec f x es ez = ask >>= \env ->
+  return $ VRec env f x es ez
+  
+interpretApp rec@(VRec env f x es ez) (VInt n)
+  | n == 0 = interpret' ez
+  | n  > 0 = do
+    let env' = extendEnv x (VInt (n-1))
+              (extendEnv f rec env)
+    R.local (const env') (interpret' es)
+\end{lstlisting}
+
+Additionally, we prepare evaluation of type $\rec V~A~t.B$ to \emph{head normal form}. Parsing term \texttt{natrec e \{ tz, tid.ts \}} maps to a corresponding type representation \texttt{TNatRec} as defined in \texttt{Syntax.hs}. Whereas \texttt{e} is an expression, it has to evaluate to a number value. Next, evaluation proceeds similar to its expression counterpart seen above with base type \texttt{tz} and recursive evaluation for \texttt{es}. The code is given in listing~\ref{lst:rec-typeeval}.
+
+In listing~\ref{lst:rec-ldgv-example} we give examples for the usage of \rec in  LDGV. The first example, \texttt{notrec}, constructs successive applications of the not function, starting with value \texttt{'F} (representing False). The second example \texttt{sumrec} constructs a function taking $n+1$ integer arguments, returning their sum. Both functions have in common that they expect a natural number for their first argument. This is sufficient to recursively evaluate the type using the \texttt{natrec} construct.
+
+\begin{lstlisting}[float,
+	label=lst:rec-typeeval,
+	caption=Evaluation of \rec type to HNF(\texttt{Interpreter.hs})]
+evalType TNatRec e tz tid ts = do
+  v <- interpret' e
+  case v of
+    VInt 0 -> evalType tz
+    VInt n ->
+      let lower = TNatRec (Lit $ LNat (n-1)) tz tid ts
+      in R.local (extendEnv tid (VType lower)) (evalType ts)
+\end{lstlisting}
+
+\begin{lstlisting}[float, language=ldgv,
+	caption=Example usage of \rec expression and type,
+	label=lst:rec-ldgv-example]
+val notrec : (n: Nat) -> natrec n {Bool, A.A}
+val notrec = rec f (x.nof(f x)) 'F
+
+val sumrec : (n: Nat) -> natrec n {Int, A.Int -> A}
+val sumrec = rec f
+  (n1 . (fn (acc : Int) fn (x : Int) f n1 (acc + x)))
+  (fn (acc: Int) acc)
+\end{lstlisting}
+
+Currently, recursor expressions and types do not fully integrate into the \emph{Cast Calculus}. Casting from and to recursor types remains complicated to write out. Furthermore, type evaluation does require knowledge of number value $n$ which must be available at runtime. For more precise typing, introducing an additional type for restricted natural numbers $n \leq x$ would prove advantageous, too. In conclusion, while casts and elimination (via \textbf{case}) of labels provide elegant functionality, their number-dependent counterpart---\textbf{rec} types and expressions---still needs some work.

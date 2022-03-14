@@ -1,5 +1,26 @@
 \chapter{Conclusion}\label{chap:conclusion}
 
-Brief wrapup of the achievements of this thesis.
+In this work we presented an implementation of \emph{Cast Calculus Label Dependent Lambda Calculus}, an extension to regular \emph{Label Dependent Lambda Calculus}. Mainly adding an expression for explicit type casts and a dynamic type, its primary purpose is to shift type operations from the type checking to the later interpretation stage. Introducing type handling during runtime, this gives an option for dynamic typing. Explicit casts to and from the dynamic type are still unwieldy in this calculus. However, as introductory mentioned, this is but an intermediate representation when introducing full gradual typing.
 
-Directions for future work (if applicable).
+The implementation was built upon LDGV, an existing interpreter and testbed for various language features. It already did support \emph{Label Dependency} and recursion over natural numbers.\footnote{Although partly in an unfinished state.} Furthermore, there is support for \emph{Session Types}, a kind system, distinction between unrestricted and linear types, a compiler for the C programming language et cetera. Even though these features were not relevant for our extensions it is vital to consider them for compatibility with other calculi. On that node, we did extend the test suite to ease the implementation of additional features without introducing regression.
+
+\section{Open Problems}
+
+As given by the nature of programming language research as well as compiler development there are numerous ways to proceed. Possibilities for improvements of LDGV are twofold: Extending its ``depth'' by introducing novel language features and extending its ``width'' by integrating existing features.
+
+On the one hand, the most obvious feature for adding ``depth'' is the implementation of full gradual typing via \emph{Gradual Label Dependent Lambda Calculus} (GLDLC). There is an description in the same paper by \cite{fu2021} that did introduce CCLDLC. The main concern is the translation between these calculi, deriving cast expressions for terms where merely the dynamic type is given. Instead of casting arguments to dynamic $(\ell_F: \Bool \Rightarrow \star)$ and later ``undoing'' this cast inside case terms $(\lambda(x:\star) . \case (x : \star \Rightarrow \Bool) \{\dots\})$ it appears more natural from a programmer's view to simply apply $\ell_F$ where type $\star$ is expected, letting the compiler figure out the intermediates. This seems vital for making dynamic types actually usable.
+
+On the other hand, adding ``width'' is possible by better integration of aforementioned \rec terms. Regardless of whether they are forming expression or types, a value representing a number is necessary for resolving the recursion. Even though we had to introduce types to the interpreter the type checker still does not know about values (as preferable to avoid entanglement). Furthermore, resolving complex expressions inside case terms remains awkward, especially in CCLDLC. For example, passing a simple \rec expression for variable $rc : \star$ warrants an application to a complicated cast inside a \case expression.
+
+\begin{equation}
+\begin{split}
+&\lambda (n:\Nat) \\
+&\quad\lambda (rc: \star) \\
+&\qquad\case ((rc : \star \Rightarrow (n:Nat) \rightarrow \text{ \textbf{natrec} } n \{\Bool, A.A\} )~n) \\
+&\quad\qquad \{\ell_T: n, \ell_F: rc~n\}
+\end{split}
+\end{equation}
+
+Instead, one might use an expression combining \rec and \natrec terms. Such a composite could be \texttt{\textbf{new\_natrec} f:n.tid.t \{ez, x.es\}} and is currently implemented similar to \textbf{rec}, evaluating to a value when applying a natural number. Whether this expression will prove useful depends on better integration into the \emph{Cast Calculus}, too.
+
+At last, LDGV supports a backend for the C programming language. We did not extend this part of the software, instead focusing on the interpreter. Thus, is still solely supports basic LDLC. Extending the C compiler requires the generation of C code to represent types (\emph{type passing}) and type casts as well as implementing the cast reduction rules as in chapter~\ref{chap:implementation}. Even though it is possible to cross-check against the interpreter's results it will require precision and effort to fully adopt the \emph{Cast Calculus}.
