@@ -6,7 +6,7 @@ This goes along with practical advantages: more precise typing, consequently bet
 
 \section{Label Dependent Types}
 
-Over the years, different approaches to dependent types surfaced, mitigating such disadvantages. This work is bases on a subset of ``Label Dependent Session Types'' by \cite{thiemann2019}. Ignoring session types, we focus on the \emph{Label Dependent Lambda Calculus} (LDLC) it introduces, extending it during this thesis. In general, types in LDLC refer to finite sets of labels. For example, it is easy to define type \textbf{Bool} with two labels representing \emph{True} and \emph{False} respectively:
+Over the years, different approaches to dependent types surfaced, mitigating such disadvantages. This work is based on a subset of ``Label Dependent Session Types'' by \cite{thiemann2019}. Ignoring session types, we focus on the \emph{Label Dependent Lambda Calculus} (LDLC) it introduces, extending it during this thesis. In general, types in LDLC refer to finite sets of labels. For example, it is easy to define type \textbf{Bool} with two labels representing \emph{True} and \emph{False} respectively:
 
 \begin{equation}\label{eqn:bool}
 \Bool    := \{\ell_{T}, \ell_{F}\}
@@ -43,7 +43,7 @@ As a disadvantage, the code above is quite verbose. Adding all these type annota
 \end{split}
 \end{equation}
 
-The original paper lists more advantages and applications of GLDLC, whereas this work focuses on implementation aspects. Therefore, the methods used for evaluating type $\star$ are of interest. This leads to an intermediate representation, describing the cast from arbitrary type $A$ to $\star$ and from $\star$ to an arbitrary type $B$. These cast are part of the \emph{Cast Calculus Label Dependent Lambda Calculus} (CCLDLC). The \emph{Cast Calculus} adds an explicit type cast expression ``$M : A \Rightarrow B$'', casting the value of evaluated expression $M$ of type $A$ to type $B$. Naturally, type $\star$ can occur on both sides. Rewriting equation~\ref{eqn:gldlc} results in a more verbose and more explicit formulation.
+The original paper lists more advantages and applications of GLDLC, whereas this work focuses on implementation aspects. Therefore, the methods used for evaluating type $\star$ are of interest. This leads to an intermediate representation, describing the cast from arbitrary type $A$ to $\star$ and from $\star$ to an arbitrary type $B$. These casts are part of the \emph{Cast Calculus Label Dependent Lambda Calculus} (CCLDLC). The \emph{Cast Calculus} adds an explicit type cast expression ``$M : A \Rightarrow B$'', casting the value of evaluated expression $M$ of type $A$ to type $B$. Naturally, type $\star$ can occur on both sides. Rewriting equation~\ref{eqn:gldlc} results in a more verbose and more explicit formulation.
 
 \begin{equation}\label{eqn:ccldlc}
 \begin{split}
@@ -73,7 +73,7 @@ Since this work is about building an implementation, there needs to be a distinc
 
 Then again, actual code precisely reflects the capabilities of LDGV. One can feed it verbatim to the interpreter. It is written in a monospaced font.
 
-\begin{lstlisting}[language=ldgv,caption=Code listing example]
+\begin{lstlisting}[language=ldgv,caption=LDGV: Source code example]
 val x = 'foo
 type A : ~un = { 'foo }
 \end{lstlisting}

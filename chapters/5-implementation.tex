@@ -2,7 +2,7 @@
 
 The actual implementation uses the Haskell programming language and related tools. There are adjustments in all three module groups as classified in section~\ref{sec:program-structure}. Furthermore, we extend the data types in the fundamental \texttt{Syntax} module with additional expressions and types from section~\ref{sec:cc-expressions}, thus making these terms known to the remaining program.
 
-\begin{lstlisting}[caption=Extensions to \texttt{Syntax.hs}]
+\begin{lstlisting}[caption=Haskell: Extensions to \texttt{Syntax.hs}]
 data Exp = ...
   | Cast Exp Type Type  -- M : A => B
 
@@ -16,7 +16,7 @@ data Type = ...
 As usual, there is a tokenization step before the actual parsing, turning a string into tokens. For this purpose, we use the tool \emph{Alex: A lexical analyser generator for Haskell}\footnote{\url{https://www.haskell.org/alex/}}, maintained by Simon Marlow, as it nicely integrates with Haskell. We add tokens for the bottom type and the double arrow used in cast expressions. In our implementation, we use \texttt{*} as identifier for the dynamic type. There already exists a corresponding token since it was used for multiplication in the base language.
 
 \begin{lstlisting}[float,
-  caption=Additional tokens (\texttt{Parsing/Tokens.x})]
+  caption=Haskell: Additional tokens (\texttt{Parsing/Tokens.x})]
 data Token = ...
   | TBot
   | DoubleArrow
@@ -30,7 +30,7 @@ tokens :-
 
 For parsing, we use \emph{Happy: The Parser Generator for Haskell}\footnote{\url{https://www.haskell.org/happy/}}, also maintained by Simon Marlow. Parsing is slightly more complicated since we need to add the dynamic type $\star$, bottom type and the cast expression $M : A \Rightarrow B$.
 
-\begin{lstlisting}[caption=Extensions to \texttt{Parsing/Grammar.y}]
+\begin{lstlisting}[caption=Haskell: Extensions to \texttt{Parsing/Grammar.y}]
 %token
   ...
   Bot   { T _ T.TBot }
@@ -52,7 +52,7 @@ Since terms involving the newly introduced dynamic type are handled at runtime t
 
 In general, type synthesis $\Gamma \vdash M \Rightarrow A;\Delta$ takes environment $\Gamma$ and expression $M$ to synthesize its type $A$ and the environment after $\Delta$. We adjust the corresponding function for the following expressions: (1) application, (2) pair construction and for built-in functions (3) \texttt{fst} and (4) \texttt{snd} (both eliminating pairs, yielding the first or second element). In code, it is complemented by a monad transformer, as seen in its annotation, though this is not relevant here.
 
-\begin{lstlisting}[caption=\texttt{tySynth} function type annotation]
+\begin{lstlisting}[caption=Haskell: \texttt{tySynth} function type annotation]
 tySynth :: TEnv -> Exp -> TCM (Type, TEnv)
 
 type TCM a =
@@ -66,7 +66,7 @@ data Constraint = Type :<: Type
 
 For application $M~N$, after synthesizing $\Gamma \vdash M \Rightarrow A;\Delta$ and if $A = \star$, we assert that expression $N$ also has dynamic type $\star$.
 
-\begin{lstlisting}[caption=Application type synthesis (\texttt{TCTyping.hs})]
+\begin{lstlisting}[caption=Haskell: Application type synthesis (\texttt{TCTyping.hs})]
 tySynth te (App e1 e2) = do
   (tf, te1) <- tySynth te e1
   tfu <- unfold te1 tf
@@ -79,7 +79,7 @@ tySynth te (App e1 e2) = do
 
 An expression involving pairs is ``\lstinline[language=ldgv]!let <x, y> = M in N!'', where $M$ has a pair type. First, the components of $M$ are bound to $x$ and $y$, finally evaluating $N$. For typecheckig, we synthesize type $A$ from $M$. Afterwards, we synthesize $\Delta_A, x:\star, y:\star \vdash N \Rightarrow B$ for the whole expression's type.
 
-\begin{lstlisting}[caption=Pair type synthesis (\texttt{TCTyping.hs})]
+\begin{lstlisting}[caption=Haskell: Pair type synthesis (\texttt{TCTyping.hs})]
 tySynth te (LetPair x y e1 e2) = do
   (tp, te1) <- tySynth te e1
   tpu <- unfold te1 tp
@@ -97,7 +97,7 @@ The built-in functions \texttt{fst} and \texttt{snd} simply return the dynamic t
 Subtyping regarding the dynamic type happens in the context of \case, used for eliminating label types. For dynamic type $\star$ we need to unfold such \case constructs by recursively checking that each type in its label matching unfolds to $\star$. For this purpose, we extend the existing \texttt{unfold} function as seen in listing~\ref{lst:ccldlc-subtyping-dyn}. If this succeeds, then type checking accepts the outcome, deferring the actual cast to runtime.
 
 \begin{lstlisting}[float,
-	caption=Unfolding to $\star$ in case terms (\texttt{TCSubtyping.hs}),
+	caption=Haskell: Unfolding to $\star$ in case terms (\texttt{TCSubtyping.hs}),
 	label=lst:ccldlc-subtyping-dyn]
 unfold :: TEnv -> Type -> TCM Type
 unfold tenv (TCase val@(Var x) cases) = do
@@ -113,7 +113,7 @@ unfold tenv (TCase val@(Var x) cases) = do
 \end{lstlisting}
 
 \begin{lstlisting}[float,
-	caption=Subtyping for casts in case terms (\texttt{TCSubtyping.hs}),
+	caption=Haskell: Subtyping for casts in case terms (\texttt{TCSubtyping.hs}),
 	label=lst:ccldgv-cast-subtyping]
 subtype' tenv
   (TCase (Cast (Var x) t1 (TLab ls2)) cases)
@@ -181,7 +181,7 @@ Since type reduction requires \emph{head normal form} we introduce an explicit d
 
 \begin{lstlisting}[float,
   label=lst:hnf-typedef,
-  caption=HNF type definition (\texttt{ProcessEnvironment.hs})]
+  caption=Haskell: HNF type definition (\texttt{ProcessEnvironment.hs})]
 data NFType
   = NFBot
   | NFDyn
@@ -192,10 +192,10 @@ data NFType
 data FuncType = FuncType PEnv String Type Type
 \end{lstlisting}
 
-The constructor \texttt{NFGType} is a special case. It takes an argument of type \texttt{GType}---the data type implementing \emph{ground types}---which we define in listing~\ref{lst:gtype}. This type dependency depicts that every ground type is also in head normal form---but not the other way around---while making comparison operations between \texttt{NFType} and \texttt{GType} possible. At the same time, defining ground types as a separate data type allows for more precise function signatures. Even so, we can not perfectly model the relationship since Haskell itself is not dependently typed. A function type $(\cdot, \Pi(x:\star)\star)$ can be written as \texttt{NFGType GFunc} or as \texttt{NFFunc (FuncType [] "x" TDyn TDyn)}. The latter is semantically correct but must not occur it most contexts. We have to resort to helper function like \texttt{equalsType} and additional logic to resolve such cases.
+The constructor \texttt{NFGType} is a special case. It takes an argument of type \texttt{GType}---the data type implementing \emph{ground types}---which we define in listing~\ref{lst:gtype}. This type dependency depicts that every ground type is also in head normal form---but not the other way around---while making comparison operations between \texttt{NFType} and \texttt{GType} possible. At the same time, defining ground types as a separate data type allows for more precise function signatures. Even so, we can not perfectly model the relationship since Haskell itself is not dependently typed. A function type $(\cdot, \Pi(x:\star)\star)$ can be written as \texttt{NFGType GFunc} or as \texttt{NFFunc (FuncType [] "x" TDyn TDyn)}. The latter is semantically correct but must not occur in most contexts. We have to resort to helper function like \texttt{equalsType} and additional logic to resolve such cases.
 
 \begin{lstlisting}[float,
-  caption=Ground type definition (\texttt{ProcessEnvironment.hs}),
+  caption=Haskell: Ground type definition (\texttt{ProcessEnvironment.hs}),
   label=lst:gtype]
 data GType
   = GUnit
@@ -219,11 +219,11 @@ equalsType (NFGType gt1) gt2 = gt1 == gt2
 equalsType _ _ = False
 \end{lstlisting}
 
-Subtyping checks are implemented in listing~\ref{lst:subtypeable} instroducing typeclass \texttt{Subtypeable} with instances for ground types \texttt{GType}---mostly with trivial definitions---and partially for HNF types \texttt{NFType}. The latter is solely necessary for implementing the \textsc{Cast-Dyn-Dyn} rule.
+Subtyping checks are implemented in listing~\ref{lst:subtypeable} introducing typeclass \texttt{Subtypeable} with instances for ground types \texttt{GType}---mostly with trivial definitions---and partially for HNF types \texttt{NFType}. The latter is solely necessary for implementing the \textsc{Cast-Dyn-Dyn} rule.
 
 \begin{lstlisting}[float,
   label=lst:subtypeable,
-  caption=Subtypeable typeclass (\texttt{ProcessEnvironment.hs})]
+  caption=Haskell: Subtypeable typeclass (\texttt{ProcessEnvironment.hs})]
 class Subtypeable t where
   isSubtypeOf :: t -> t -> Bool
 
@@ -250,7 +250,7 @@ We also extend the value type according to section~\ref{sec:cc-expressions}. We 
 
 \begin{lstlisting}[float,
   label=lst:ccldlc-value-type,
-  caption=Value type extensions (\texttt{ProcessEnvironment.hs})]
+  caption=Haskell: Value type extensions (\texttt{ProcessEnvironment.hs})]
 data Value = -- ...
   | VFunc PEnv String Exp
   | VFuncCast Value FuncType FuncType
@@ -260,7 +260,7 @@ data Value = -- ...
 We use these new and extended data types to handle CCLDLC's types during the interpretation state, especially for type inference in cast expressions. At last, we need a mapping to HNF types used in type casts. We introduce the \texttt{evalType} function in listing~\ref{lst:type-eval} to evaluate types to their HNF form. Mostly, this evaluation is trivial. For function and pair types, the environment is made part of the type. Most involved is evaluation of the $\case x~\{\ell_i : A_i\}$ type since case types are never in HNF. We match label $x \downarrow \ell_j$ on the type mapping, finally evaluating $A_j \downarrow A^\circ$. If possible, we evaluate to ground types and wrap them using the \texttt{NFGType} constructor.
 
 \begin{lstlisting}[float,
-  caption=Type evaluation (\texttt{Interpreter.hs}),
+  caption=Haskell: Type evaluation (\texttt{Interpreter.hs}),
   label=lst:type-eval]
 evalType :: Type -> InterpretM NFType
 evalType = \case
@@ -292,7 +292,7 @@ The goal of type inference at runtime is to either reduce casts in a way that ev
 We extended the language with cast expression $M : A \Rightarrow B$. However, a cast reduction has to have form $V : A^\circ \Rightarrow B^\circ$. Hence, we use rule \textsc{Cast-Reduce} to evaluate expression $M$ to value $V$ and types $A$ and $B$ to HNF $A^\circ$ and $B^\circ$ respectively. For that purpose, we extend the existing \texttt{eval} function according to listing~\ref{lst:cast-reduce}. This function implements the interpreter's main logic, mapping all the language's expressions (see figure~\ref{fig:ldlc-expressions}) to values. The \texttt{InterpretM} monad from the function's signature represents evaluation environment $\rho$, providing the \emph{Reader} monad's interface.\footnote{\url{https://hackage.haskell.org/package/transformers-0.6.0.4/docs/Control-Monad-Trans-Reader.html}}
 
 \begin{lstlisting}[float,
-  caption=Cast expression evaluation (\texttt{Interpreter.hs}),
+  caption=Haskell: Cast expression evaluation (\texttt{Interpreter.hs}),
   label=lst:cast-reduce]
 eval :: Exp -> InterpretM Value
 eval cast@(Cast e t1 t2) = do
@@ -307,7 +307,7 @@ Cast reduction $V : A^\circ \Rightarrow B^\circ \Downarrow V'$ is implemented in
 The basic \textsc{Cast-Is-Value} rule returns $V : A^\circ \Rightarrow B^\circ$ as it is if it already forms a value. This occurs for $A^\circ = G, B^\circ = \star$ (\texttt{VDynCast}) or for function casts, i.e. $A^\circ=(\rho, \Pi(x:A)A'), B^\circ=(\rho, \Pi(x:B)B')$ (\texttt{VFuncCast}). When implementing the latter we have to consider the ground type \texttt{GFunc} that is also a valid function type but is on a different level in the type hierarchy. Therefore, more code is necessary to handle conversion. If the \textsc{Cast-Is-Value} rule does not apply we check the remaining rules via distinct function \texttt{reduceCast'} as \emph{alternative} (indicated by the \texttt{<|>} operator). The code is given in listing~\ref{lst:cast-is-value}.
 
 \begin{lstlisting}[float,
-  caption=Rule \textsc{Cast-Is-Value} (\texttt{Interpreter.hs}),
+  caption=Haskell: Rule \textsc{Cast-Is-Value} (\texttt{Interpreter.hs}),
   label=lst:cast-is-value]
 reduceCast :: Value -> NFType -> NFType -> Maybe Value
 reduceCast v t1 t2 = castIsValue v t1 t2
@@ -329,10 +329,10 @@ castIsValue v (NFGType (GFunc x)) (NFGType (GFunc y)) =
 castIsValue _ _ _ = Nothing
 \end{lstlisting}
 
-For some rules we match HNF types to ground types as defined in figure~\ref{fig:ccldlc-type-matching}. The actual code of listing~\ref{lst:type-matching} is more concise that the definition because of the way we encapsulated \texttt{GType} and since we do not consider singleton types.
+For some rules we match HNF types to ground types as defined in figure~\ref{fig:ccldlc-type-matching}. The actual code of listing~\ref{lst:type-matching} is more concise than the definition because of the way we encapsulated \texttt{GType} and since we do not consider singleton types.
 
 \begin{lstlisting}[float,
-  caption=Type matching $A^\circ \rhd G$ (\texttt{Interpreter.hs}),
+  caption=Haskell: Type matching $A^\circ \rhd G$ (\texttt{Interpreter.hs}),
   label=lst:type-matching]
 matchType :: NFType -> Maybe GType
 matchType = \case
@@ -348,7 +348,7 @@ Rules \textsc{Cast-Dyn-Dyn} and \textsc{Factor-Left} are similar such that they 
 
 \begin{lstlisting}[float,
   label=lst:cast-dyn-dyn-factor-left,
-  caption=Rules \textsc{Cast-Dyn-Dyn} and \textsc{Factor-Left} (\texttt{Interpreter.hs})]
+  caption=Haskell: Rules \textsc{Cast-Dyn-Dyn} and \\ \textsc{Factor-Left} (\texttt{Interpreter.hs})]
 reduceCast' v t NFDyn =
   if t `isSubtypeOf` NFDyn
   then Just v --Cast-Dyn-Dyn
@@ -360,14 +360,14 @@ reduceCast' v t NFDyn =
 
 There is no type that is a subtype of the bottom type $\bot$. Hence, a cast to $\bot$ must always results in blame which is expressed in rule \textsc{Cast-Bot}.
 
-\begin{lstlisting}[caption=Rule \textsc{Cast-Bot} (\texttt{Interpreter.hs})]
+\begin{lstlisting}[caption=Haskell: Rule \textsc{Cast-Bot} (\texttt{Interpreter.hs})]
 reduceCast' _ _ NFBot = Nothing
 \end{lstlisting}
 
 It is straightforward to implement rules \textsc{Cast-Collapse} and \textsc{Cast-Collide}. Even though dynamic type $\star$ does not support transitivity w.r.t. subtyping, these rules enable transitivity for ground types only. The code is given in listing~\ref{lst:cast-collapse}.
 
 \begin{lstlisting}[float,
-  caption=Rules \textsc{Cast-Collapse} and \textsc{Cast-Collide} (\texttt{Interpreter.hs}),
+  caption=Haskell: Rules \textsc{Cast-Collapse} and \\ \textsc{Cast-Collide} (\texttt{Interpreter.hs}),
   label=lst:cast-collapse]
 reduceCast' (VDynCast v gt1) NFDyn (NFGType gt2) =
   if gt1 `isSubtypeOf` gt2 then Just v else Nothing
@@ -376,7 +376,7 @@ reduceCast' (VDynCast v gt1) NFDyn (NFGType gt2) =
 Rule \textsc{Factor-Right} describes a cast from $\star$ to another type (listing~\ref{lst:factor-right}). Its utilization of \emph{type matching} $\rhd$ makes it similar to \textsc{Factor-Left}. A failure results in \blame since rules with similar structure, namely \textsc{Cast-Collapse} and \textsc{Cast-Collide}, were handled before by pattern matching over more specific arguments.
 
 \begin{lstlisting}[float,
-  caption=Rule \textsc{Factor-Right} (\texttt{Interpreter.hs}),
+  caption=Haskell: Rule \textsc{Factor-Right} (\texttt{Interpreter.hs}),
   label=lst:factor-right]
 reduceCast' v NFDyn t = do
   gt <- matchType t
@@ -391,15 +391,15 @@ reduceCast' v NFDyn t = do
 
 Finally, we give a simple implementation for rule \textsc{Cast-Sub} which simply checks subtyping between given ground types. On failure, this simply returns \blame without any additional checks. Also, we completely omit rule \textsc{Cast-Fail}. This is because it is the last rule in context of \texttt{reduceCast'}. There are no cases left to examine so any cast not yet covered must fail.
 
-\begin{lstlisting}[caption=Rule \textsc{Cast-Sub} (\texttt{Interpreter.hs})]
+\begin{lstlisting}[caption=Haskell: Rule \textsc{Cast-Sub} (\texttt{Interpreter.hs})]
 reduceCast' v (NFGType gt1) (NFGType gt2) =
   if gt1 `isSubtypeOf` gt2 then Just v else Nothing
 \end{lstlisting}
 
-The last two are about type reductions in context of pairs and functions. First, we implemnt \textsc{Cast-Pair}. For this purpose we make adjustments to the \texttt{eval} function in listing~\ref{lst:cast-reduce} which returns monad \texttt{InterpretM}. This is necessary since we need to consider the expression's environment $\rho$. The type annotation of function \texttt{reduceCast} does not accept arguments capable of representing the environment. After evaluating to $V : A^\circ \Rightarrow B^\circ$ we catch pair values by pattern matching and pass the cast term to function \texttt{reducePairCast} as seen in listing~\ref{lst:pair-cast}. Again, we need a helper function to manage overlapping types. With \texttt{toNFPair} we intercept ground types, using type constructor \texttt{NFPair} instead of \texttt{NFGType}. This is necessary since \texttt{reducePairCast} only matches the former. Alternatively, one might match against all combinations of both type constructors as in function \texttt{castIsValue} from listing~\ref{lst:cast-is-value}. The actual cast reduction consists of simply reducing both of its components. When reducing the second component, we extend the respective environments with the first components' values (\texttt{xEnv}).
+The last two rules are about type reductions in context of pairs and functions. First, we implemnt \textsc{Cast-Pair}. For this purpose we make adjustments to the \texttt{eval} function in listing~\ref{lst:cast-reduce} which returns monad \texttt{InterpretM}. This is necessary since we need to consider the expression's environment $\rho$. The type annotation of function \texttt{reduceCast} does not accept arguments capable of representing the environment. After evaluating to $V : A^\circ \Rightarrow B^\circ$ we catch pair values by pattern matching and pass the cast term to function \texttt{reducePairCast} as seen in listing~\ref{lst:pair-cast}. Again, we need a helper function to manage overlapping types. With \texttt{toNFPair} we intercept ground types, using type constructor \texttt{NFPair} instead of \texttt{NFGType}. This is necessary since \texttt{reducePairCast} only matches the former. Alternatively, one might match against all combinations of both type constructors as in function \texttt{castIsValue} from listing~\ref{lst:cast-is-value}. The actual cast reduction consists of simply reducing both of its components. When reducing the second component, we extend the respective environments with the first components' values (\texttt{xEnv}).
 
 \begin{lstlisting}[float,
-  caption=Rule \textsc{Cast-Pair} (\texttt{Interpreter.hs}),
+  caption=Haskell: Rule \textsc{Cast-Pair} (\texttt{Interpreter.hs}),
   label=lst:pair-cast]
 eval cast@(Cast e t1 t2) = do
   v    <- interpret' e
@@ -437,10 +437,10 @@ reduceComponent v (env, t) (env', t') = do
   return $ reduceCast v nft nft'
 \end{lstlisting}
 
-Finally, we implement \textsc{Cast-Function} by---again---extending function \texttt{eval} for application $M~N$. Formerly, this separately did evaluate expressions $M \downarrow V$ and $N \downarrow W$ to values. Given $V$ is a function $(\rho, \lambda x. M')$ it extends environment $\rho$ with $x=W$, then evaluating $M'$ in its context. Otherwise, it would fail. For our extension we introduce function \texttt{interpretApp} taking values $V$ as $W$ as arguments in listing~\ref{lst:cast-function}. This allows for more involved functionality by matching over its arguments' types. Apart from that, the code mostly reflects the rule, using \texttt{runReaderT} from the \emph{Reader} monad to respectively pass the correct environment.
+Finally, we implement \textsc{Cast-Function} by---again---extending function \texttt{eval} for application $M~N$, see listing~\ref{lst:cast-function}. Formerly, this separately did evaluate expressions $M \downarrow V$ and $N \downarrow W$ to values. Given $V$ is a function $(\rho, \lambda x. M')$ it extends environment $\rho$ with $x=W$, then evaluating $M'$ in its context. Otherwise, it would fail. For our extension we introduce function \texttt{interpretApp} taking values $V$ as $W$ as arguments in listing~\ref{lst:cast-function}. This allows for more involved functionality by matching over its arguments' types. Apart from that, the code mostly reflects the rule, using \texttt{runReaderT} from the \emph{Reader} monad to respectively pass the correct environment.
 
 \begin{lstlisting}[float,
-  caption=Rule \textsc{Cast-Function} (\texttt{Interpreter.hs}),
+  caption=Haskell: Rule \textsc{Cast-Function} (\texttt{Interpreter.hs}),
   label=lst:cast-function]
 interpretApp :: Value -> Value -> InterpretM Value
 interpretApp (VFuncCast v
@@ -461,7 +461,7 @@ interpretApp (VFuncCast v
 
 \section{Function Cast Example}
 
-To give an intuition about the reduction of cast expressions regarding the rules and implementation we show a non-trivial example. We evaluate a nested lambda expression taking two arguments $x,y$. While $x$ hat type \Bool, the type of $y$ is dynamic. In the function's body $y$ depends on the value of $x$, hence a cast. If $x=\ell_F$ then $y$ is a function mapping one boolean argument to a boolean result, then applying $x$. Else, for $x=\ell_T$, $y$ is a function expecting \emph{two} arguments, applying $x$ two successive times. Please note that the actual code in listing~\ref{lst:ccldgv-example1} is nearly identical to CCLDLC form in equation~\ref{eqn:ccldlc-example1}.
+To give an intuition about the reduction of cast expressions regarding the rules and implementation we show a non-trivial example. We evaluate a nested lambda expression taking two arguments $x,y$. While $x$ has type \Bool, the type of $y$ is dynamic. In the function's body $y$ depends on the value of $x$, hence a cast. If $x=\ell_F$ then $y$ is a function mapping one boolean argument to a boolean result, then applying $x$. Else, for $x=\ell_T$, $y$ is a function expecting \emph{two} arguments, applying $x$ two successive times. Please note that the actual code in listing~\ref{lst:ccldgv-example1} is nearly identical to CCLDLC form in equation~\ref{eqn:ccldlc-example1}.
 
 \begin{equation}\label{eqn:ccldlc-example1}
 \begin{split}
@@ -476,7 +476,7 @@ f = & \lambda (x: \Bool)
 
 \begin{lstlisting}[language=ldgv,
   label=lst:ccldgv-example1,
-  caption=CCLDGV example ``dependent function cast'']
+  caption=LDGV: CCLDGV example ``dependent function cast'']
 val f = fn(x: Bool) fn(y: *) case x {
           'F: (y: * => (a:Bool) -> Bool) x,
           'T: (y: * => (a:Bool) -> (b:Bool) -> Bool) x x}
@@ -537,14 +537,14 @@ The current implementation of $\rec V~M~x.f.N$ is mostly as its description in s
 
 \begin{lstlisting}[float,
 	label=lst:rec-typeext,
-	caption=(\texttt{ProcessEnvironment.hs})]
+	caption=Haskell: Introducing value representation of \\ \rec (\texttt{ProcessEnvironment.hs})]
 data Value = -- ...
     | VRec PEnv String String Exp Exp
 \end{lstlisting}
 
 \begin{lstlisting}[float,
 	label=lst:rec-eval,
-	caption=(\texttt{Interpreter.hs})]
+	caption=Haskell: Evaluation of \rec (\texttt{Interpreter.hs})]
 eval Rec f x es ez = ask >>= \env ->
   return $ VRec env f x es ez
   
@@ -562,7 +562,7 @@ In listing~\ref{lst:rec-ldgv-example} we give examples for the usage of \rec in 
 
 \begin{lstlisting}[float,
 	label=lst:rec-typeeval,
-	caption=Evaluation of \rec type to HNF(\texttt{Interpreter.hs})]
+	caption=Haskell: Evaluation of \rec type to HNF(\texttt{Interpreter.hs})]
 evalType TNatRec e tz tid ts = do
   v <- interpret' e
   case v of
@@ -573,7 +573,7 @@ evalType TNatRec e tz tid ts = do
 \end{lstlisting}
 
 \begin{lstlisting}[float, language=ldgv,
-	caption=Example usage of \rec expression and type,
+	caption=LDGV: Example usage of \rec expression and type,
 	label=lst:rec-ldgv-example]
 val notrec : (n: Nat) -> natrec n {Bool, A.A}
 val notrec = rec f (x.nof(f x)) 'F

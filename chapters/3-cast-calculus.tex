@@ -2,7 +2,7 @@
 
 The \emph{Cast Calculus Label Dependent Lambda Calculus} is an extension to regular LDLC as introduced in section~\ref{sec:ldlc}. It adds an explicit cast between two types, a dynamic type $\star$ as well as related language constructs. CCLDLC is but an intermediate representation between LDLC and a gradual typing extension GLDLC. With gradual typing, type casts involving the dynamic type are hidden and handled internally. In other words, a program written in GLDLC is internally converted to CCLDLC by making type casts explicit. The actual, cast reductions happens in the latter calculus. This work is solely about implementing the Cast Calculus without going into conversion from the Gradual Calculus.
 
-\section{Exptessions and Types}\label{sec:cc-expressions}
+\section{Expressions and Types}\label{sec:cc-expressions}
 
 \begin{figure}
 \begin{align*}
@@ -201,10 +201,10 @@ For the cast calculus, most adaptions happen in the interpreter, implementing ru
 
 But first things first, we implement preliminary language constructs, starting with the most basic module: In the \texttt{Syntax} module, we add a constructor for the cast $(M : A \Rightarrow B)$ to the data type for expressions, accepting an expression $M$ and two types $A$ and $B$. We also add two argumentless types: bottom type $\bot$ and dynamic type $\star$. In section~\ref{sec:cc-expressions} we mentioned the top type $\top$, which we do not implement, because there actually is no expression of type $\top$. When declaring a function taking an argument of arbitary type, the programmer will use the dynamic type $\lambda(x:\star)M$. This implies that variable $x$ is handled at runtime. A function $\lambda(x:\top)M$ is only sound if $M = \blame$, which is not necessary since we archive the same result by unfolding.
 
-The modules connected to \texttt{Parsing} need to reflect these modifications. We introduce tokens for the dynamic type and the bottom type and extend the grammar accordingly. We also add an expression for casts. See figure~\ref{lst:ccldlc-grammar}.
+The modules connected to \texttt{Parsing} need to reflect these modifications. We introduce tokens for the dynamic type and the bottom type and extend the grammar accordingly. We also add an expression for casts. See listing~\ref{lst:ccldlc-grammar}.
 
 \begin{lstlisting}[float,language=ldgv,
-  caption=New language constructs for CCLDLC,
+  caption=LDGV: New language constructs for CCLDLC,
   label=lst:ccldlc-grammar]
 Bot           -- bottom type
 *             -- dynamic type

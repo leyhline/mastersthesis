@@ -64,7 +64,7 @@ Another two language concepts are more interesting: First and foremost, the supp
 
 \subsection{Labels and Label Sets}
 
-The main feature of LDLC is its use of labels. A label evaluates to itself, thus it forms its own value. But what about its type? Any finite non-empty set of labels $L$ is a type. For instance, this is sufficient to declare a boolean type as seen in equation~\ref{eqn:bool}.
+The main feature of LDLC is its use of labels. A label evaluates to itself, thus it forms its own value. But what about its type? Any finite non-empty set of labels $L$ is a type. For instance, is is sufficient to declare a boolean type as seen in equation~\ref{eqn:bool}.
 
 The minimal type is the singleton type of its corresponding label. For label $\ell$ this is $\{\ell\}$. Apart from that there might be a bottom type $\bot$ which corresponds to a hypothetical empty label set. Neither type $\bot$ nor the empty label set are valid types in LDLC.
 
@@ -124,12 +124,12 @@ Since a label type is a set of labels we can use set comparisons for subtyping. 
 
 \section{LDGV Interpreter}
 
-LDGV stands for ``Label Dependency'' and ``Gay \& Vasconcelos'', the authors of multiple papers about Session Types, e.g. \cite{gayvasconcelos2010}. In this work's context, it is the name of an interpreter for LDLC and its extension CCLDLC. It is written in the Haskell programming language.
+LDGV stands for ``Label Dependency'' and ``Gay \& Vasconcelos'', the authors of multiple papers about Session Types, e.\,g. \cite{gayvasconcelos2010}. In this work's context, it is the name of an interpreter for LDLC and its extension CCLDLC. It is written in the Haskell programming language.
 
-Its syntax is similar the calculus from the previous section. We give an excerpt in listing~\ref{lst:ldgv-expressions}. In general, keywords and structure are identical save for labels. To uniquely identify and tokenize a label it needs to be a combination of alphanumeric characters, prefixed by an apostrophe. Furthermore, as opposed to the underlying LDLC, there is basic string support. A combination of characters enclosed by quotation marks \texttt{"} is read as string expression.
+Its syntax is similar to the calculus from the previous section. We give an excerpt in listing~\ref{lst:ldgv-expressions}. In general, keywords and structure are identical safe for labels. To uniquely identify and tokenize a label it needs to be a combination of alphanumeric characters, prefixed by an apostrophe. Furthermore, as opposed to the underlying LDLC, there is basic string support. A combination of characters enclosed by quotation marks \texttt{"} is read as string expression.
 
 \begin{lstlisting}[float,language=ldgv,
-  caption={Expressions in LDGV (excerpt) with expressions \texttt{M,N,P}, variable \texttt{x} and type \texttt{A}},
+  caption={LDGV: Expressions (excerpt) with expressions \texttt{M,N,P}, variable \texttt{x} and type \texttt{A}},
   label=lst:ldgv-expressions]
 ()          -- unit
 M + N       -- and other arithmetic
@@ -145,7 +145,7 @@ fn(x: A) M  -- lambda function
 The syntax for types is given in listing~\ref{lst:ldgv-types}. Writing out function and pair types differs from the calculus' notation. Function types of multiple arguments are built by recursion, e.g. \texttt{(x:A) -> (y:B) -> C}.
 
 \begin{lstlisting}[float,language=ldgv,
-  caption={Types in LDGV (excerpt) with expression \texttt{M}, variable \texttt{x}, type identifier \texttt{T} and types \texttt{A,B}},
+  caption={LDGV: Types (excerpt) with expression \texttt{M}, variable \texttt{x}, type identifier \texttt{T} and types \texttt{A,B}},
   label=lst:ldgv-types]
 Unit
 Int
@@ -162,7 +162,7 @@ case M {'foo: A, 'bar: B}
 For an actual program there need to be statements, especially declarations. They create the global environment, binding expressions to variables and types to type identifiers\footnote{For type identifiers, the programmer has to supply a \emph{kind}. For brevity, we omit the introduction of kinds, generally assuming kind \texttt{\textasciitilde un} in declarations.}. When running the interpreter on a given program, it outputs the evaluation result of the expression bound to variable \texttt{main}. Furthermore, there are type assertions. The full list of statements in given in listing~\ref{lst:ldgv-statements}.
 
 \begin{lstlisting}[float,language=ldgv,
-  caption={Statements in LDGV, with expression \texttt{M} and types \texttt{A,B}},
+  caption={LDGV: Statements with expression \texttt{M} and types \texttt{A,B}},
   label=lst:ldgv-statements]
 val x = M         -- variable declaration
 val x : A         -- variable signature declaration
@@ -175,7 +175,7 @@ Translating equation~\ref{eqn:ldlc} into a valid LDGV program results in the sam
 Variable \texttt{main} gives an example application, fully evaluating to value \texttt{'F} (representing boolean \emph{False}).
 
 \begin{lstlisting}[float,language=ldgv,numbers=left,
-  caption=Sample LDGV program,
+  caption=LDGV: Sample program,
   label=lst:ldgv-program]
 type Bool : ~un = {'T, 'F}
 
