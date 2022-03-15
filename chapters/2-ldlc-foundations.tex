@@ -64,7 +64,7 @@ Another two language concepts are more interesting: First and foremost, the supp
 
 \subsection{Labels and Label Sets}
 
-The main feature of LDLC is its use of labels. A label evaluates to itself, thus it forms its own value. But what about its type? Any finite non-empty set of labels $L$ is a type. For instance, is is sufficient to declare a boolean type as seen in equation~\ref{eqn:bool}.
+The main feature of LDLC is its use of labels. A label evaluates to itself, thus it forms its own value. But what about its type? Any finite non-empty set of labels $L$ is a type. For instance, it is sufficient to declare a boolean type as seen in equation~\ref{eqn:bool}.
 
 The minimal type is the singleton type of its corresponding label. For label $\ell$ this is $\{\ell\}$. Apart from that there might be a bottom type $\bot$ which corresponds to a hypothetical empty label set. Neither type $\bot$ nor the empty label set are valid types in LDLC.
 
@@ -117,7 +117,7 @@ Since a label type is a set of labels we can use set comparisons for subtyping. 
 \\
 \Gamma ::= \cdot \enspace | \enspace \Gamma, x:A
 \end{mathpar}
-\caption[Subtyping rules in LDGV (excerpt)]{Subtyping rules in LDGV (excerpt) w.r.t. type environment $\Gamma$}
+\caption[Subtyping rules in LDGV (excerpt)]{Subtyping rules in LDGV (excerpt) w.\,r.\,t. type environment $\Gamma$}
 \label{fig:ldgv-subtyping}
 \end{figure}
 
@@ -129,23 +129,23 @@ LDGV stands for ``Label Dependency'' and ``Gay \& Vasconcelos'', the authors of 
 Its syntax is similar to the calculus from the previous section. We give an excerpt in listing~\ref{lst:ldgv-expressions}. In general, keywords and structure are identical safe for labels. To uniquely identify and tokenize a label it needs to be a combination of alphanumeric characters, prefixed by an apostrophe. Furthermore, as opposed to the underlying LDLC, there is basic string support. A combination of characters enclosed by quotation marks \texttt{"} is read as string expression.
 
 \begin{lstlisting}[float,language=ldgv,
-  caption={LDGV: Expressions (excerpt) with expressions \texttt{M,N,P}, variable \texttt{x} and type \texttt{A}},
+  caption={LDGV: Expressions (excerpt) with expressions \texttt{M,N,P}, \\ variable \texttt{x} and type \texttt{A}},
   label=lst:ldgv-expressions]
 ()          -- unit
-M + N       -- and other arithmetic
+M + N       -- and other arithmetics
 10          -- numbers
 "foo bar"   -- strings
 x           -- variables
 'foo        -- labels
-case M {'foo: M, 'bar: P}
-fn(x: A) M  -- lambda function
+case M {'foo: N, 'bar: P}
+fn(x: A) M  -- lambda abstraction
 <x = M, N>  -- pair
 \end{lstlisting}
 
 The syntax for types is given in listing~\ref{lst:ldgv-types}. Writing out function and pair types differs from the calculus' notation. Function types of multiple arguments are built by recursion, e.g. \texttt{(x:A) -> (y:B) -> C}.
 
 \begin{lstlisting}[float,language=ldgv,
-  caption={LDGV: Types (excerpt) with expression \texttt{M}, variable \texttt{x}, type identifier \texttt{T} and types \texttt{A,B}},
+  caption={LDGV: Types (excerpt) with expression \texttt{M}, variable \texttt{x}, \\ type identifier \texttt{T} and types \texttt{A,B}},
   label=lst:ldgv-types]
 Unit
 Int
@@ -159,7 +159,7 @@ case M {'foo: A, 'bar: B}
 [x: A, B]     -- pair type
 \end{lstlisting}
 
-For an actual program there need to be statements, especially declarations. They create the global environment, binding expressions to variables and types to type identifiers\footnote{For type identifiers, the programmer has to supply a \emph{kind}. For brevity, we omit the introduction of kinds, generally assuming kind \texttt{\textasciitilde un} in declarations.}. When running the interpreter on a given program, it outputs the evaluation result of the expression bound to variable \texttt{main}. Furthermore, there are type assertions. The full list of statements in given in listing~\ref{lst:ldgv-statements}.
+For an actual program there need to be statements, especially declarations. They create the global environment, binding expressions to variables and types to type identifiers.\footnote{For type identifiers, the programmer has to supply a \emph{kind}. For brevity, we omit the introduction of kinds, generally assuming kind \texttt{\textasciitilde un} in declarations.} When running the interpreter on a given program, it outputs the evaluation result of the expression bound to variable \texttt{main}. Furthermore, there are type assertions. The full list of statements is given in listing~\ref{lst:ldgv-statements}.
 
 \begin{lstlisting}[float,language=ldgv,
   caption={LDGV: Statements with expression \texttt{M} and types \texttt{A,B}},
@@ -171,8 +171,8 @@ A <: B            -- subtype assertion
 A =: B            -- type equivalence assertion
 \end{lstlisting}
 
-Translating equation~\ref{eqn:ldlc} into a valid LDGV program results in the sample program in figure~\ref{lst:ldgv-program}. The variable's type signatures \texttt{val x:A} are optional.
-Variable \texttt{main} gives an example application, fully evaluating to value \texttt{'F} (representing boolean \emph{False}).
+Translating equation~\ref{eqn:ldlc} into a valid LDGV program results in the sample program in figure~\ref{lst:ldgv-program}. The variable's type signatures are optional.
+Variable \texttt{main} gives an example application and does fully evaluate to value \texttt{'F} (representing boolean \emph{False}).
 
 \begin{lstlisting}[float,language=ldgv,numbers=left,
   caption=LDGV: Sample program,

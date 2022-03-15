@@ -1,6 +1,6 @@
 \chapter{Introduction}\label{chap:introduction}
 
-In programming, dependent types are the next step in the unification of language constructs. Not only values and functions but also types are first class constructs. When declaring types, it is now possible to depend on values, e.g. in addition to type \emph{Integer}, one may define a type $(Integer~n)$, only accepting a value $x \in (Integer~n)$ when $x \leq n$.
+In programming, dependent types are the next step in the unification of language constructs. Not only values and functions but also types are first class constructs. When declaring types, it is now possible to depend on values, e.\,g. in addition to type \emph{Integer}, one may define a type $(Integer~n)$, only accepting a value $x \in \mathbb{Z}$ when $x \leq n$.
 
 This goes along with practical advantages: more precise typing, consequently better correctness guarantees and more expressive power when describing programs. Nevertheless, such power comes at a cost: As the difference between proof and program grows hazy, type checking will face similar problems as program execution. The additional complexity of fully dependent types implies \emph{Turing completeness}. Hence, type checking will be subject to the \emph{halting problem}.
 
@@ -25,7 +25,7 @@ Elimination is done using a \textbf{case} construct, matching labels with expres
 \end{split}
 \end{equation}
 
-Label-dependency has various advantages. It is less complex than full value-dependency. The compiler has more options to check type safety, resulting in a more reliable program. Furthermore, types can serve as a machine-readable and machine-verifiable documentation since they give hints about the workings of the code.
+Label-dependency strikes a middle ground between full dependent typing and its complete absence. Thus, it comes with similar advantages. It is not as complex. The compiler has more options to check type safety, resulting in a more reliable program. Furthermore, types can serve as a machine-readable and machine-verifiable documentation since they give hints about the workings of the code.
 As a disadvantage, the code above is quite verbose. Adding all these type annotations can be cumbersome for a programmer, especially when still exploring a given task and trying out different approaches.
 
 \section{Gradual Typing}
@@ -43,7 +43,7 @@ As a disadvantage, the code above is quite verbose. Adding all these type annota
 \end{split}
 \end{equation}
 
-The original paper lists more advantages and applications of GLDLC, whereas this work focuses on implementation aspects. Therefore, the methods used for evaluating type $\star$ are of interest. This leads to an intermediate representation, describing the cast from arbitrary type $A$ to $\star$ and from $\star$ to an arbitrary type $B$. These casts are part of the \emph{Cast Calculus Label Dependent Lambda Calculus} (CCLDLC). The \emph{Cast Calculus} adds an explicit type cast expression ``$M : A \Rightarrow B$'', casting the value of evaluated expression $M$ of type $A$ to type $B$. Naturally, type $\star$ can occur on both sides. Rewriting equation~\ref{eqn:gldlc} results in a more verbose and more explicit formulation.
+The original paper lists more advantages and applications of GLDLC, whereas this work focuses on implementation aspects. Therefore, the methods used for evaluating type $\star$ are of interest. This leads to an intermediate representation, describing the cast from arbitrary type $A$ to $\star$ and from $\star$ to an arbitrary type $B$. These casts are part of the \emph{Cast Calculus Label Dependent Lambda Calculus} (CCLDLC). The \emph{Cast Calculus} adds an explicit type cast expression $(M : A \Rightarrow B)$, casting the value of evaluated expression $M$ of type $A$ to type $B$. Naturally, type $\star$ may occur on both sides. Rewriting equation~\ref{eqn:gldlc} results in a more verbose and more explicit formulation.
 
 \begin{equation}\label{eqn:ccldlc}
 \begin{split}
@@ -54,7 +54,7 @@ The original paper lists more advantages and applications of GLDLC, whereas this
 \end{split}
 \end{equation}
 
-In CCLDLC, a cast must always happen in such an explicit manner. The same is true for function application. When passing an expression for variable $y$, there must be an explicit cast to the dynamic type, e.g. $(\ell_F : \Bool \Rightarrow \star)$.
+In CCLDLC, a cast must always happen in such an explicit manner. The same is true for function application. When passing an expression for variable $y$, there must be an explicit cast to the dynamic type, e.\,g. $(\ell_F : \Bool \Rightarrow \star)$.
 
 We contribute an implementation of CCLDLC by extending LDGV, an existing interpreter for Label Dependent Session Types in the Haskell programming language.
 \\

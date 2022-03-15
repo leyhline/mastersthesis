@@ -1,6 +1,6 @@
 \chapter{Cast Calculus}\label{chap:cast-calculus}
 
-The \emph{Cast Calculus Label Dependent Lambda Calculus} is an extension to regular LDLC as introduced in section~\ref{sec:ldlc}. It adds an explicit cast between two types, a dynamic type $\star$ as well as related language constructs. CCLDLC is but an intermediate representation between LDLC and a gradual typing extension GLDLC. With gradual typing, type casts involving the dynamic type are hidden and handled internally. In other words, a program written in GLDLC is internally converted to CCLDLC by making type casts explicit. The actual, cast reductions happens in the latter calculus. This work is solely about implementing the Cast Calculus without going into conversion from the Gradual Calculus.
+The \emph{Cast Calculus Label Dependent Lambda Calculus} is an extension to regular LDLC as introduced in section~\ref{sec:ldlc}. It adds an explicit cast between two types, a dynamic type $\star$ as well as related language constructs. CCLDLC is but an intermediate representation between LDLC and a gradual typing extension GLDLC. With gradual typing, type casts involving the dynamic type are hidden and handled internally. In other words, a program written in GLDLC is internally converted to CCLDLC by making type casts explicit. The actual cast reductions happens in the latter calculus. This work is solely about implementing the \emph{Cast Calculus} without going into conversion from the \emph{Gradual Calculus}.
 
 \section{Expressions and Types}\label{sec:cc-expressions}
 
@@ -16,7 +16,7 @@ The \emph{Cast Calculus Label Dependent Lambda Calculus} is an extension to regu
 \end{figure}
 
 CCLDLC adds expressions for cast and blame as well as the dynamic type, top type and bottom type; see figure~\ref{fig:ccldlc-extensions}.
-The bottom type's single purpose is as type for the blame expression $(\blame : \bot)$. The top type is only used for unfolding the bottom type, evaluating $\bot$ to a function of any argument $\Pi(y:\top)\bot$, the \emph{smallest function type}. Every type $A$ is a subtype of $\top$ ($A \leq \top$) and $\bot$ is a subtype of every type $B$ ($\bot \leq B$). Hence, the smallest function type we just described contains functions accepting any argument, then always evaluating to \blame.
+The bottom type's single purpose is as type for the blame expression $(\blame : \bot)$. The top type is only used for unfolding the bottom type, evaluating $\bot$ to a function of any argument $\Pi(y:\top)\bot$, the \emph{smallest function type}. Every type $A$ is a subtype of $\top$ ($A \leq \top$) and $\bot$ is a subtype of every type $B$ ($\bot \leq B$). Hence, the smallest function type we just described contains functions accepting any argument, then always evaluating to \textbf{blame}.
 
 \section{Values}
 
@@ -43,13 +43,13 @@ The bottom type's single purpose is as type for the blame expression $(\blame : 
 
 Values are extended in a less intuitive way, see figure~\ref{fig:ccldlc-extensions-values}. First, there is a \emph{dynamic wrapper} $V : G \Rightarrow \star$, representing a cast of value $V$ from a ground type $G$ to dynamic type $\star$. The whole cast term is a value itself. A ground type indicates an application of dynamic arguments to a top level type constructor as well as subtyping capabilities. Hence, label types are ground types, together with the unit type, built-in numeric types and corresponding singleton types. There are also ground types for function types where argument and return type are unknown $(\Pi(x:\star)\star)$ and for pair types with unknown component types $(\Sigma(x:\star)\star)$. Here, ``unknown type'' means unknown before runtime, thus we use the dynamic type $\star$.
 
-Next, a function closure where the evaluation environment $\rho$ is explicitly part of the value. Environment $\rho$ is an ordered mapping of variable names to values. It is necessary for substitutions in expressions with bound variables on evaluation. Providing the environment as part of a function value implies deferred evaluation. Instead of strictly substituting variables in the function's body, full evaluation is delayed by supplying $\rho$ for looking up values when further evaluation is necessary. In CCLDLC, we simultaneously use $\rho$ for mapping type identifiers to types for similar reasons in context of cast reductions. This is possible because in the language's syntax variables and type identifiers necessarily have different names: variables starting with lowercase, type identifiers with an uppercase latter.
+Next, a function closure where the evaluation environment $\rho$ is explicitly part of the value. Environment $\rho$ is an ordered mapping of variable names to values. It is necessary for substitutions in expressions with bound variables on evaluation. Providing the environment as part of a function value implies deferred evaluation. Instead of strictly substituting variables in the function's body, full evaluation is delayed by supplying $\rho$ for looking up values when further evaluation is necessary. In CCLDLC, we simultaneously use $\rho$ for mapping type identifiers to types for similar reasons in context of cast reductions. This is possible because in the language's syntax, variables and type identifiers necessarily have different names: variables starting with lowercase, type identifiers with an uppercase letter.
 
 And finally a function type cast for value $V$ of a specific function type to another one. This is necessary for reducing function casts and is shown in greater detail when describing the implementation.
 
 \section{Evaluation and Cast Reduction}\label{sec:ccldlc-inference-rules}
 
-Interpreting an LDLC program (assuming successful type checking) implies evaluation of the expression at the program's entry point.\footnote{Reminder: in LDGV this is the expression that was bound to variable \texttt{main}.} Often, this involves recursively evaluating sub-expressions. Assuming a correct program with finite execution time, interpretation yields a final value. In contrast, CCLDLC needs to handle casts and types on top this:
+Interpreting an LDLC program (assuming successful type checking) implies evaluation of the expression at the program's entry point.\footnote{Reminder: in LDGV this is the expression that was bound to variable \texttt{main}.} In general, this involves recursively evaluating sub-expressions. Assuming a correct program with finite execution time, interpretation yields a final value. In contrast, CCLDLC needs to handle casts and types on top of this.
 
 \begin{itemize}
 \item As in LDLC, interpretation requires the evaluation of expression $M$ to a value $V$ in environment $\rho$ as defined in the last section:
@@ -127,7 +127,7 @@ We now introduce additional evaluation rules, especially for handling cast expre
 \label{fig:cast-reduction-rules}
 \end{figure}
 
-Figure~\ref{fig:ccldlc-extensions} did describe \emph{Cast Calculus} extensions to the language's expressions. Here, the cast expression $(M : A \Rightarrow B)$ consists of an expression $M$ of type $A$ and a target type $B$. The \textsc{Cast-Reduce} rule describes the procedure for evaluating the expression's components before cast reduction.  In environment $\rho$, the embedded expression is evaluated $(M \downarrow V)$ resulting in a value. On successful cast reduction this is also the whole reduction's result. As for the types $A$ and $B$, we need to evaluate them to \emph{head normal form} ($A \downarrow A^\circ$; $B \downarrow B^\circ$).
+Figure~\ref{fig:ccldlc-extensions} did describe \emph{Cast Calculus} extensions to the language's expressions. Here, the cast expression $(M : A \Rightarrow B)$ consists of an expression $M$ of type $A$ and a target type $B$. The \textsc{Cast-Reduce} rule describes the procedure for evaluating the expression's components before cast reduction.  In environment $\rho$, the embedded expression is evaluated $(M \downarrow V)$ resulting in a value. On successful cast reduction this is also the whole reduction's result. As for the types $A$ and $B$, we do evaluate them to \emph{head normal form} ($A \downarrow A^\circ$; $B \downarrow B^\circ$).
 
 \vspace{4ex}\hrule
 
@@ -158,7 +158,7 @@ Using the types from CCLDLC, we can derive all forms of HNF types by type evalua
 \label{fig:ccldlc-hnf}
 \end{figure}
 
-Some rules make use of \emph{type matching} from HNF types to ground types using the $\rhd$ operator. These are \textsc{Cast-Fail}, \textsc{Cast-Factor-Left} and \textsc{Cast-Factor-Right}. Note that type matching does not work from ground types to HNF types since the latter are more general.
+Some rules make use of \emph{type matching} from HNF types to ground types using the $\rhd$ operator. These are \textsc{Cast-Fail}, \textsc{Cast-Factor-Left} and \textsc{Cast-Factor-Right}. Note that type matching does not work \emph{from} ground types \emph{to} HNF types since the latter are more general.
 
 \begin{figure}
 \begin{align*}
@@ -199,7 +199,9 @@ Since the module groups are separated, only the Interpreter knows about values, 
 
 For the cast calculus, most adaptions happen in the interpreter, implementing runtime casts. Parts of the aforementioned simplicity regarding type erasure have to be abandoned to introduce \emph{type passing} wheresoever necessary.
 
-But first things first, we implement preliminary language constructs, starting with the most basic module: In the \texttt{Syntax} module, we add a constructor for the cast $(M : A \Rightarrow B)$ to the data type for expressions, accepting an expression $M$ and two types $A$ and $B$. We also add two argumentless types: bottom type $\bot$ and dynamic type $\star$. In section~\ref{sec:cc-expressions} we mentioned the top type $\top$, which we do not implement, because there actually is no expression of type $\top$. When declaring a function taking an argument of arbitary type, the programmer will use the dynamic type $\lambda(x:\star)M$. This implies that variable $x$ is handled at runtime. A function $\lambda(x:\top)M$ is only sound if $M = \blame$, which is not necessary since we archive the same result by unfolding.
+But first things first, we implement preliminary language constructs, starting with the most basic module: In the \texttt{Syntax} module, we add a constructor for the cast $(M : A \Rightarrow B)$ to the data type for expressions, accepting an expression $M$ and two types $A$ and $B$. We also add two argumentless types: bottom type $\bot$ and dynamic type $\star$. In section~\ref{sec:cc-expressions} we mentioned the top type $\top$, which we do not implement, because there actually is no expression of type $\top$. When declaring a function taking an argument of arbitary type, the programmer will use the dynamic type $\lambda(x:\star)M$. This implies that variable $x$ is handled at runtime. A function $\lambda(x:\top)M$ is only sound if $M = \blame$, which is not necessary since we archive the same outcome by unfolding.
+
+On the same note, there is no expression for explicitly invoking \textbf{blame}. As it indicates a cast failure, the implementation will handle blame. Since the programmer is not involved in the specification of type casting rules there is no need to allow its usage in the language.
 
 The modules connected to \texttt{Parsing} need to reflect these modifications. We introduce tokens for the dynamic type and the bottom type and extend the grammar accordingly. We also add an expression for casts. See listing~\ref{lst:ccldlc-grammar}.
 
